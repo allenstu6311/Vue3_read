@@ -1,0 +1,1 @@
+export const extend: typeof Object.assign = Object.assign;
