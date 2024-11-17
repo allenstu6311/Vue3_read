@@ -1,0 +1,15 @@
+#目前讀到  _createVNode
+
+
+#需要了解
+
+(ts)
+ShadowRoot
+HostNode
+HostElement
+ElementNamespace
+unique symbol
+
+(js)
+instanceof
+ Symbol.for('v-ndc')

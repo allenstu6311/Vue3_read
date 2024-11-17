@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Vue3 Write</title>
 </head>
 <body>
 
@@ -12,9 +12,14 @@
     <script type="module">
         import { createApp } from "./dist/packages/runtime-dom/src/index.js";
         // const app = createApp
-        console.log(createApp());
-        
+        const app = createApp({
+            setup(){
 
+            }
+        }).mount("#app")
+        
+        // console.log('app',app);
+        
     </script>
     
 </body>

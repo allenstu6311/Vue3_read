@@ -1,6 +1,7 @@
 import { Ref } from "../../reactivity/ref.js"
 import { AppContext } from "./compat/apiCreateApp.js"
-import { Component, ComponentInternalInstance } from "./component.js"
+import { ClassComponent, Component, ComponentInternalInstance } from "./component.js"
+import { NULL_DYNAMIC_COMPONENT } from "./helpers/resolveAssets.js"
 import { RendererElement, RendererNode } from "./renderer.js"
 
 export const Text: unique symbol = Symbol.for('v-txt')
@@ -141,3 +142,12 @@ export interface VNode<
    */
   ce?: (instance: ComponentInternalInstance) => void
 }
+
+
+export const createVNode = (
+  _createVNode
+) as typeof _createVNode
+
+function _createVNode(
+  type:VNodeTypes | ClassComponent | typeof  NULL_DYNAMIC_COMPONENT
+){}

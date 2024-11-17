@@ -1,6 +1,7 @@
 import { AppContext } from "./compat/apiCreateApp.js";
 import { EmitsOptions, ObjectEmitsOptions } from "./componentEmits.js"
 import { ComponentOptions, ComputedOptions, MethodOptions } from "./componentOptions.js"
+import { ComponentPublicInstance } from "./componentPublicInstance.js";
 import { Directive } from "./directives.js";
 import { LifecycleHooks } from "./enums.js";
 import { VNode } from "./vnode.js";
@@ -307,4 +308,9 @@ export interface ComponentInternalInstance {
      * @internal
      */
     // resolvedOptions?: MergedComponentOptions
-  }
+}
+
+export interface ClassComponent {
+  new (...args: any[]): ComponentPublicInstance<any, any, any, any, any>
+  __vccOpts: ComponentOptions
+}

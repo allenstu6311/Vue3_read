@@ -1,4 +1,5 @@
-import { CreateAppFunction } from "./compat/apiCreateApp.js";
+import { NOOP } from "../../shared/src/general.js";
+import { createAppAPI, CreateAppFunction } from "./compat/apiCreateApp.js";
 import { ComponentInternalInstance } from "./component.js";
 import { createHydrationFunctions } from "./hydration.js";
 import type { VNode, VNodeProps } from "./vnode.js"
@@ -85,4 +86,29 @@ function baseCreateRenderer(
     createHydrationFns?:typeof createHydrationFunctions
 ):any{
 
+  const {
+    insert: hostInsert,
+    remove: hostRemove,
+    patchProp: hostPatchProp,
+    createElement: hostCreateElement,
+    createText: hostCreateText,
+    createComment: hostCreateComment,
+    setText: hostSetText,
+    setElementText: hostSetElementText,
+    parentNode: hostParentNode,
+    nextSibling: hostNextSibling,
+    setScopeId: hostSetScopeId = NOOP,
+    insertStaticContent: hostInsertStaticContent,
+  } = options;
+
+  const render:RootRenderFunction = (vnode, container, namespace)=>{
+
+  }
+
+
+  return {
+    render,
+    createApp:createAppAPI(render)
+  }
+  
 }
