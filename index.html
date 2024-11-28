@@ -1,26 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Vue3 Write</title>
-</head>
-<body>
-
-
-    <script type="module" src="./dist/packages/runtime-dom/src/index.js"></script>
+  </head>
+  <body>
+    <div id="app">{{test}}</div>
+    <script
+      type="module"
+      src="./dist/packages/runtime-dom/src/index.js"
+    ></script>
     <script type="module">
-        import { createApp } from "./dist/packages/runtime-dom/src/index.js";
-        // const app = createApp
-        const app = createApp({
-            setup(){
+      import { createApp } from "./dist/packages/runtime-dom/src/index.js";
+      // const app = createApp
+      const app = createApp({
+        setup() {
+          const test = null;
+        },
+      }).mount("#app");
 
-            }
-        }).mount("#app")
-        
-        // console.log('app',app);
-        
+      // console.log('app',app);
     </script>
-    
-</body>
+  </body>
 </html>

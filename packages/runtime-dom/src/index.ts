@@ -1,49 +1,73 @@
+import {
+  createRenderer,
+  ElementNamespace,
+  type HydrationRenderer,
+  type Renderer,
+} from "../../runtime-core/src/renderer.js";
+import { extend, isFunction, isString } from "../../shared/src/general.js";
+import { nodeOps } from "./nodeOps.js";
+import { patchProps } from "./patchProp.js";
 
-import { createRenderer, ElementNamespace, type HydrationRenderer, type Renderer } from "../../runtime-core/src/renderer.js"
-import { extend, isString } from "../../shared/src/general.js"
-import { nodeOps } from "./nodeOps.js"
-import { patchProps } from "./patchProp.js"
+const rendererOptions = /*@__PURE__*/ extend({ patchProps }, nodeOps) as any;
 
-const rendererOptions = /*@__PURE__*/ extend({ patchProps }, nodeOps) as any
-
-let renderer: Renderer<Element | ShadowRoot> | HydrationRenderer
+let renderer: Renderer<Element | ShadowRoot> | HydrationRenderer;
 function ensureRenderer() {
-    return (
-        renderer ||
-        (renderer = createRenderer<Node, Element | ShadowRoot>(rendererOptions))
-    )
+  return (
+    renderer ||
+    (renderer = createRenderer<Node, Element | ShadowRoot>(rendererOptions))
+  );
 }
 
-export const createApp = ((...args: any) => {
-    const app = (ensureRenderer().createApp as (...args: any[]) => any)(...args);
+export const createApp = (...args: any) => {
+  const app = (ensureRenderer().createApp as (...args: any[]) => any)(...args);
 
-    const { mount } = app;
+  const { mount } = app;
 
-    /**
-     * #app
-     * @param containerOrSelector id
-     */
-    app.mount = (containerOrSelector: Element | ShadowRoot | string): any => {
-        // 返回到前面的mount
-        const container = normalizeContainer(containerOrSelector);
-        if (container) {
-            return mount(container, true,resolveRootNamespace(container))
-        }
+  /**
+   * #app
+   * @param containerOrSelector id
+   */
+  app.mount = (containerOrSelector: Element | ShadowRoot | string): any => {
+    // 返回到前面的mount
+    const container = normalizeContainer(containerOrSelector);
+    if (!container) return;
+    const component = app._component;
+
+    if (!isFunction(component) && !component.render && !component.template) {
+      component.template = container.innerHTML;
     }
-    console.log('createApp', app);
 
-    return app
-})
+    if (container.nodeType === 1) {
+      container.textContent = "";
+    }
+
+    if (container instanceof Element) {
+      container.removeAttribute("v-cloak");
+      container.setAttribute("data-v-app", ""); // 標記為vue控管的html
+    }
+
+    const proxy = mount(container, false, resolveRootNamespace(container));
+    return proxy;
+  };
+  console.log("createApp", app);
+
+  return app;
+};
 
 function resolveRootNamespace(
-    container: Element | ShadowRoot,
+  container: Element | ShadowRoot
 ): ElementNamespace {
-    if (container instanceof SVGAElement) return 'svg';
-    if (typeof MathMLElement === 'function' && container instanceof MathMLElement) return 'mathml';
+  if (container instanceof SVGAElement) return "svg";
+  if (typeof MathMLElement === "function" && container instanceof MathMLElement)
+    return "mathml";
 }
 
 function normalizeContainer(
-    container: Element | ShadowRoot | string
+  container: Element | ShadowRoot | string
 ): Element | ShadowRoot | null {
-    return container as any;
+  if (isString(container)) {
+    const res = document.querySelector(container);
+    return res;
+  }
+  return container as any;
 }

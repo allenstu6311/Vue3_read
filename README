@@ -1,4 +1,4 @@
-#目前讀到  _createVNode
+#目前讀到  processComponent準備生真實DOM
 
 
 #需要了解
@@ -13,3 +13,5 @@ unique symbol
 (js)
 instanceof
  Symbol.for('v-ndc')
+ Symbol.for("v-cmt");
+
