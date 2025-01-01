@@ -1,5 +1,5 @@
 import { ShapeFlags } from "./../../shared/src/shapeFlags.js";
-import { isRef, Ref } from "../../reactivity/ref.js";
+import { isRef, Ref } from "../../reactivity/src/ref.js";
 import { AppContext } from "./compat/apiCreateApp.js";
 import {
   ClassComponent,
@@ -114,7 +114,7 @@ export interface VNode<
    */
   slotScopeIds: string[] | null;
   children: VNodeNormalizedChildren;
-  // component: ComponentInternalInstance | null
+  component: ComponentInternalInstance | null;
   // dirs: DirectiveBinding[] | null
   // transition: TransitionHooks<HostElement> | null
 

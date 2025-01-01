@@ -1,10 +1,15 @@
-import { ShapeFlags } from "./../../shared/src/shapeFlags";
+import { ShapeFlags } from "./../../shared/src/shapeFlags.js";
 import { NOOP } from "../../shared/src/general.js";
 import { createAppAPI, CreateAppFunction } from "./compat/apiCreateApp.js";
-import { ComponentInternalInstance } from "./component.js";
+import {
+  ComponentInternalInstance,
+  createComponentInstance,
+  setupComponent,
+} from "./component.js";
 import { SuspenseBoundary } from "./components/Suspense.js";
 import { createHydrationFunctions } from "./hydration.js";
 import type { VNode, VNodeProps } from "./vnode.js";
+import { Text } from "./vnode.js";
 
 /**
  * RendererNode 可以是任何物件。在核心渲染邏輯中，它不會被直接操作，
@@ -113,6 +118,16 @@ export interface RendererOptions<
   ): [HostNode, HostNode];
 }
 
+export type MountComponentFn = (
+  initialVNode: VNode,
+  container: RendererElement,
+  anchor: RendererNode | null,
+  parentComponent: ComponentInternalInstance | null,
+  parentSuspense: SuspenseBoundary | null,
+  namespace: ElementNamespace,
+  optimized: boolean
+) => void;
+
 export function createRenderer<
   HostNode = RendererNode,
   HostElement = RendererElement
@@ -160,7 +175,6 @@ function baseCreateRenderer(
     }
 
     const { type, ref, shapeFlag } = n2;
-    console.log("type", type);
 
     switch (type) {
       case Text:
@@ -168,7 +182,19 @@ function baseCreateRenderer(
         break;
 
       default:
-        if (shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
+        if (shapeFlag & ShapeFlags.ELEMENT) {
+        } else if (shapeFlag & ShapeFlags.COMPONENT) {
+          processComponent(
+            n1,
+            n2,
+            container,
+            anchor,
+            parentComponent,
+            parentSuspense,
+            namespace,
+            slotScopeIds,
+            optimized
+          );
         }
         break;
     }
@@ -196,7 +222,47 @@ function baseCreateRenderer(
     namespace: ElementNamespace,
     slotScopeIds: string[] | null,
     optimized: boolean
-  ) => {};
+  ) => {
+    if (n1 == null) {
+      if (n2.shapeFlag & ShapeFlags.COMPONENT_KEPT_ALIVE) {
+      } else {
+        mountComponent(
+          n2,
+          container,
+          anchor,
+          parentComponent,
+          parentSuspense,
+          namespace,
+          optimized
+        );
+      }
+    } else {
+      // 更新vnode邏輯
+    }
+  };
+
+  const mountComponent: MountComponentFn = (
+    initialVNode,
+    container,
+    anchor,
+    parentComponent,
+    parentSuspense,
+    namespace: ElementNamespace,
+    optimized
+  ) => {
+    const compatMountInstance = false;
+    const instance: ComponentInternalInstance =
+      compatMountInstance ||
+      (initialVNode.component = createComponentInstance(
+        initialVNode,
+        parentComponent,
+        parentSuspense
+      ));
+
+    if (compatMountInstance) {
+      setupComponent();
+    }
+  };
 
   const unmount: UnmountFn = () => {};
 

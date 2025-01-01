@@ -1,4 +1,6 @@
-#目前讀到  processComponent準備生真實DOM
+tsc -w 並開啟根目錄下的index.html
+ 
+#目前讀到  setupComponent 準備生真實DOM
 
 
 #需要了解
@@ -9,6 +11,7 @@ HostNode
 HostElement
 ElementNamespace
 unique symbol
+TConstructor
 
 (js)
 instanceof

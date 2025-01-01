@@ -1,10 +1,20 @@
+import { IfAny } from "../../runtime-dom/src/typeUtils.js";
 import { SlotFlags } from "../../shared/src/slotFlags.js";
 import { ComponentInternalInstance } from "./component.js";
+import { VNode } from "./vnode.js";
 
 declare const SlotSymbol: unique symbol;
 
+export type Slot<T extends any = any> = (
+  ...args: IfAny<T, any[], [T] | (T extends undefined ? [] : never)>
+) => VNode[];
+
 export type SlotsType<T extends Record<string, any> = Record<string, any>> = {
   [SlotSymbol]?: T;
+};
+
+export type InternalSlots = {
+  [name: string]: Slot | undefined;
 };
 
 export type RawSlots = {

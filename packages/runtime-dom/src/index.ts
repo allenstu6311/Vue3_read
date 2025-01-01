@@ -11,7 +11,12 @@ import { patchProps } from "./patchProp.js";
 const rendererOptions = /*@__PURE__*/ extend({ patchProps }, nodeOps) as any;
 
 let renderer: Renderer<Element | ShadowRoot> | HydrationRenderer;
-function ensureRenderer() {
+
+interface renderApp {
+  render: Function;
+  createApp: Function;
+}
+function ensureRenderer(): renderApp {
   return (
     renderer ||
     (renderer = createRenderer<Node, Element | ShadowRoot>(rendererOptions))
@@ -21,10 +26,10 @@ function ensureRenderer() {
 export const createApp = (...args: any) => {
   const app = (ensureRenderer().createApp as (...args: any[]) => any)(...args);
 
-  const { mount } = app;
+  const { mount } = app; //關鍵渲染DOM得方法
 
   /**
-   * #app
+   * .$mount("#app")
    * @param containerOrSelector id
    */
   app.mount = (containerOrSelector: Element | ShadowRoot | string): any => {
@@ -49,7 +54,7 @@ export const createApp = (...args: any) => {
     const proxy = mount(container, false, resolveRootNamespace(container));
     return proxy;
   };
-  console.log("createApp", app);
+  // console.log("createApp", app);
 
   return app;
 };

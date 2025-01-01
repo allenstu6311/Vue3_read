@@ -213,11 +213,10 @@ export function createAppAPI<HostElement>(
           } else if (namespace === false) {
             namespace = undefined;
           }
-
           render(vnode, rootContainer, namespace);
           isMounted = true;
 
-          console.log("vnode", vnode);
+          // console.log("vnode", vnode);
         }
 
         return null as any;
