@@ -49,3 +49,17 @@ export interface Subscriber extends DebuggerOptions {
 }
 
 export class ReactiveEffect<T = any> {}
+
+/**
+ * @internal
+ */
+export let shouldTrack = true;
+const trackStack: boolean[] = [];
+
+/**
+ * 暫時停止追蹤(暫停響應式)
+ */
+export function pauseTracking(): void {
+  trackStack.push(shouldTrack);
+  shouldTrack = false;
+}

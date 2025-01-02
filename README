@@ -1,6 +1,6 @@
 tsc -w 並開啟根目錄下的index.html
  
-#目前讀到  setupComponent 準備生真實DOM
+#目前讀到  ref
 
 
 #需要了解

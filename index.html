@@ -17,11 +17,13 @@
       // debugger;
       const app = createApp({
         setup() {
-          const test = null;
+          const test = ref(null);
+
+          return {
+            test,
+          };
         },
       }).mount("#app");
-
-      // console.log('app',app);
     </script>
   </body>
 </html>

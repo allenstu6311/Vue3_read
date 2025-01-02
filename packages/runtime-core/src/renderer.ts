@@ -251,6 +251,7 @@ function baseCreateRenderer(
     optimized
   ) => {
     const compatMountInstance = false;
+
     const instance: ComponentInternalInstance =
       compatMountInstance ||
       (initialVNode.component = createComponentInstance(
@@ -259,8 +260,8 @@ function baseCreateRenderer(
         parentSuspense
       ));
 
-    if (compatMountInstance) {
-      setupComponent();
+    if (!compatMountInstance) {
+      setupComponent(instance, false);
     }
   };
 

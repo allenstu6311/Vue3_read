@@ -1,6 +1,7 @@
-import { ReactiveEffect } from "../../reactivity/src/effect.js";
+import { pauseTracking, ReactiveEffect } from "../../reactivity/src/effect.js";
 import { EffectScope } from "../../reactivity/src/effectScope.js";
 import { EMPTY_OBJ } from "../../shared/src/general.js";
+import { ShapeFlags } from "../../shared/src/shapeFlags.js";
 import { AppContext, createAppContext } from "./compat/apiCreateApp.js";
 import {
   EmitFn,
@@ -22,6 +23,7 @@ import { SuspenseBoundary } from "./components/Suspense.js";
 import { InternalSlots } from "./componentSlots.js";
 import { Directive } from "./directives.js";
 import { LifecycleHooks } from "./enums.js";
+import { callWithErrorHandling, ErrorCodes } from "./errorHandling.js";
 import { SchedulerJob } from "./scheduler.js";
 import { VNode } from "./vnode.js";
 
@@ -31,6 +33,12 @@ export let isInSSRComponentSetup = false;
 export type Component = {};
 export type Data = Record<string, unknown>;
 
+export interface FunctionalComponent<
+  P = {},
+  E extends EmitsOptions | Record<string, any[]> = {},
+  S extends Record<string, any> = any
+> {}
+
 export type ConcreteComponent<
   Props = {},
   RawBindings = any,
@@ -39,8 +47,9 @@ export type ConcreteComponent<
   M extends MethodOptions = MethodOptions,
   E extends EmitsOptions | Record<string, any[]> = {},
   S extends Record<string, any> = any
-> = ComponentOptions<Props, RawBindings, D, C, M>;
-//   | FunctionalComponent<Props, E, S>
+> =
+  | ComponentOptions<Props, RawBindings, D, C, M>
+  | FunctionalComponent<Props, E, S>;
 
 export type LifecycleHook<TFn = Function> = TFn[] | null;
 export type InternalRenderFunction = {};
@@ -435,10 +444,51 @@ export function createComponentInstance(
   return instance;
 }
 
+/**
+ * 是否唯有狀態的組件
+ */
+export function isStatefulComponent(
+  instance: ComponentInternalInstance
+): number {
+  return instance.vnode.shapeFlag & ShapeFlags.STATEFUL_COMPONENT;
+}
+
 export function setupComponent(
   instance: ComponentInternalInstance,
   isSSR = false,
   optimized = false
 ): Promise<void> | undefined {
+  // const { props, children } = instance.vnode;
+  const isStateful = isStatefulComponent(instance);
+
+  const setupResult = isStateful
+    ? setupStatefulComponent(instance, isSSR)
+    : undefined;
+
+  // return setupResult;
   return undefined;
+}
+
+function setupStatefulComponent(
+  instance: ComponentInternalInstance,
+  isSSR: boolean
+) {
+  const Component = instance.type as ConcreteComponent;
+
+  // 建立快取
+  instance.accessCache = Object.create(null);
+
+  const { setup } = Component;
+  if (setup) {
+    pauseTracking();
+    const setupContext = (instance.setupContext = null);
+    const setupResult = callWithErrorHandling(
+      setup,
+      instance,
+      ErrorCodes.SETUP_FUNCTION,
+      [setupContext]
+    );
+
+    console.log("setupResult", setupResult);
+  }
 }
