@@ -6,7 +6,7 @@ export declare const RawSymbol: unique symbol;
 
 export interface Ref<T = any, S = T> {
   get value(): T;
-  set value(_: S);
+  set value(_: S | any);
   /**
    * Type differentiator only.
    * We need this to be in public d.ts but don't want it to show up in IDE
