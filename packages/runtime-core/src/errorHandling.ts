@@ -67,8 +67,6 @@ export function callWithErrorHandling(
   args?: unknown[]
 ): any {
   try {
-    console.log("args", args);
-
     return args ? fn(...args) : fn();
   } catch (err) {
     // handleError(err, instance, type);

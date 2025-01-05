@@ -1,5 +1,7 @@
 import { IfAny } from "../../runtime-dom/src/typeUtils.js";
+import { ComputedRef } from "./computed.js";
 import { ReactiveFlags } from "./constants.js";
+import { isReactive, toRaw, toReactive } from "./reactive.js";
 
 declare const RefSymbol: unique symbol;
 export declare const RawSymbol: unique symbol;
@@ -15,6 +17,11 @@ export interface Ref<T = any, S = T> {
   [RefSymbol]: true;
 }
 
+export type ShallowUnwrapRef<T> = {
+  [K in keyof T]: DistributeRef<T[K]>
+}
+type DistributeRef<T> = T extends Ref<infer V, unknown> ? V : T
+
 /**
  * Checks if a value is a ref object.
  *
@@ -25,6 +32,8 @@ export function isRef<T>(r: Ref<T> | unknown): r is Ref<T>;
 export function isRef(r: any): r is Ref {
   return r ? r[ReactiveFlags.IS_REF] === true : false;
 }
+
+export type MaybeRef<T = any> = {};
 
 /**
  * Takes an inner value and returns a reactive and mutable ref object, which
@@ -40,7 +49,64 @@ export function ref<T>(
   : Ref<UnwrapRef<T>, UnwrapRef<T> | T>;
 export function ref<T = any>(): Ref<T | undefined>;
 export function ref(value?: unknown) {
-  return null as any;
+  return createRef(value, false)
+}
+
+function createRef(rawValue: unknown, shallow: boolean) { 
+  if(isRef(rawValue)){
+    return rawValue;
+  }
+  return new RefImpl(rawValue, shallow)
 }
 
 export type UnwrapRef<T> = {};
+
+class RefImpl<T = any> {
+  _value: T
+  private _rawValue: T
+
+  // dep
+
+  constructor(value: T, isShallow: boolean) {
+    this._rawValue = isShallow ? value : toRaw(value)
+    this._value = isShallow ? value : toReactive(value)
+  }
+
+  get value(){
+    return this._value
+  }
+
+  set value(newVal){}
+}
+/**
+ * 檢查傳入的值是否為 ref，，如果是則返回其內部的值（即 ref.value）
+ */
+export function unref<T>(ref: MaybeRef<T> | ComputedRef<T>): T {
+  return isRef(ref) ? ref.value as T : ref as T
+}
+
+
+const shallowUnwrapHandlers: ProxyHandler<any> = {
+  get: (target, key, receiver) =>
+    key === ReactiveFlags.RAW
+      ? target
+      : unref(Reflect.get(target, key, receiver)),
+  set: (target, key, value, receiver) => {
+    const oldValue = target[key]
+    if (isRef(oldValue) && !isRef(value)) {
+      oldValue.value = value
+      return true
+    } else {
+      return Reflect.set(target, key, value, receiver)
+    }
+  },
+}
+
+export function proxyRefs<T extends object>(
+  objectWithRefs: T,
+):ShallowUnwrapRef<T>{
+  return isReactive(objectWithRefs)
+    ? objectWithRefs
+    : new Proxy(objectWithRefs, shallowUnwrapHandlers)
+
+}

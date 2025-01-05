@@ -13,17 +13,24 @@
     ></script>
     <script type="module">
       import { createApp } from "./dist/packages/runtime-dom/src/index.js";
+      import { ref } from "./dist/packages/reactivity/src/ref.js"
       // const app = createApp
       // debugger;
       const app = createApp({
         setup() {
-          const test = ref(null);
-
+          const test = ref({
+            data:1
+          });
+          console.log('test',test.value);
+          
           return {
             test,
           };
         },
       }).mount("#app");
+
+      // console.log('app',app);
+      
     </script>
   </body>
 </html>

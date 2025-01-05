@@ -63,3 +63,11 @@ export function pauseTracking(): void {
   trackStack.push(shouldTrack);
   shouldTrack = false;
 }
+
+/**
+ * 重置之前的全域效果追蹤狀態。
+ */
+export function resetTracking(): void {
+  const last = trackStack.pop()
+  shouldTrack = last === undefined ? true : last
+}

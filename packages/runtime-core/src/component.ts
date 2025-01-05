@@ -1,6 +1,7 @@
-import { pauseTracking, ReactiveEffect } from "../../reactivity/src/effect.js";
+import { pauseTracking, ReactiveEffect, resetTracking } from "../../reactivity/src/effect.js";
 import { EffectScope } from "../../reactivity/src/effectScope.js";
-import { EMPTY_OBJ } from "../../shared/src/general.js";
+import { proxyRefs } from "../../reactivity/src/ref.js";
+import { EMPTY_OBJ, isFunction, isObject } from "../../shared/src/general.js";
 import { ShapeFlags } from "../../shared/src/shapeFlags.js";
 import { AppContext, createAppContext } from "./compat/apiCreateApp.js";
 import {
@@ -465,8 +466,7 @@ export function setupComponent(
     ? setupStatefulComponent(instance, isSSR)
     : undefined;
 
-  // return setupResult;
-  return undefined;
+  return setupResult as any;
 }
 
 function setupStatefulComponent(
@@ -482,13 +482,36 @@ function setupStatefulComponent(
   if (setup) {
     pauseTracking();
     const setupContext = (instance.setupContext = null);
+
+    // setup return
     const setupResult = callWithErrorHandling(
       setup,
       instance,
       ErrorCodes.SETUP_FUNCTION,
       [setupContext]
     );
+    resetTracking();
+    // missing reset
 
-    console.log("setupResult", setupResult);
+    handleSetupResult(instance, setupResult, isSSR);
   }
 }
+
+export function handleSetupResult(
+  instance: ComponentInternalInstance,
+  setupResult: unknown,
+  isSSR: boolean,
+):void{
+  if(isFunction(setupResult)){
+
+  }else if(isObject(setupResult)){
+    instance.setupState = proxyRefs(setupResult)
+  }
+  finishComponentSetup(instance, isSSR);
+}
+
+export function finishComponentSetup(
+  instance: ComponentInternalInstance,
+  isSSR: boolean,
+  skipOptions?: boolean,
+){}

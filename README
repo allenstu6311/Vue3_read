@@ -1,6 +1,6 @@
 tsc -w 並開啟根目錄下的index.html
  
-#目前讀到  ref
+# 目前看到 component.ts finishComponentSetup
 
 
 #需要了解
@@ -12,6 +12,9 @@ HostElement
 ElementNamespace
 unique symbol
 TConstructor
+onst raw = observed && (observed as Target)[ReactiveFlags.RAW];
+0 extends 1
+T extends unknown
 
 (js)
 instanceof
