@@ -17,11 +17,10 @@ export const isString = (val: unknown): val is string =>
 export const EMPTY_OBJ: { readonly [key: string]: any } = {};
 
 export const objectToString: typeof Object.prototype.toString =
-  Object.prototype.toString
+  Object.prototype.toString;
 
 export const toTypeString = (value: unknown): string =>
-  objectToString.call(value)
-
+  objectToString.call(value);
 
 /**
  * 回傳物件名稱來判斷目標類型
@@ -29,5 +28,14 @@ export const toTypeString = (value: unknown): string =>
  */
 export const toRawType = (value: unknown): string => {
   // extract "RawType" from strings like "[object RawType]"
-  return toTypeString(value).slice(8, -1)
+  return toTypeString(value).slice(8, -1);
+};
+
+export function genCacheKey(source: string, options: any): string {
+  return (
+    source +
+    JSON.stringify(options, (_, val) =>
+      typeof val === "function" ? val.toString() : val
+    )
+  );
 }

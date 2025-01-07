@@ -12,17 +12,18 @@
       src="./dist/packages/runtime-dom/src/index.js"
     ></script>
     <script type="module">
-      import { createApp } from "./dist/packages/runtime-dom/src/index.js";
-      import { ref } from "./dist/packages/reactivity/src/ref.js"
+      // import { createApp } from "./dist/packages/runtime-dom/src/index.js";
+      // import { ref } from "./dist/packages/reactivity/src/ref.js";
+      import { createApp, ref } from "./dist/packages/vue/src/index.js";
       // const app = createApp
       // debugger;
       const app = createApp({
         setup() {
           const test = ref({
-            data:1
+            data: 1,
           });
-          console.log('test',test.value);
-          
+          // console.log('test',test.value);
+
           return {
             test,
           };
@@ -30,7 +31,6 @@
       }).mount("#app");
 
       // console.log('app',app);
-      
     </script>
   </body>
 </html>

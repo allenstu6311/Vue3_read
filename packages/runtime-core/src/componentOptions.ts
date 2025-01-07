@@ -12,6 +12,7 @@ import {
 import { EmitsOptions } from "./componentEmits.js";
 import { SlotsType } from "./componentSlots.js";
 import { Directive } from "./directives.js";
+import { VNodeChild } from "./vnode.js";
 
 export type ComputedOptions = Record<
   string,
@@ -96,3 +97,5 @@ export type ComponentOptions<
   Exposed extends string = string,
   Provide extends ComponentProvideOptions = ComponentProvideOptions
 > = any;
+
+export type RenderFunction = () => VNodeChild;

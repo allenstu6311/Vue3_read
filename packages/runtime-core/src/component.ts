@@ -1,7 +1,17 @@
-import { pauseTracking, ReactiveEffect, resetTracking } from "../../reactivity/src/effect.js";
+import { CompilerOptions } from "../../compiler-core/options.js";
+import {
+  pauseTracking,
+  ReactiveEffect,
+  resetTracking,
+} from "../../reactivity/src/effect.js";
 import { EffectScope } from "../../reactivity/src/effectScope.js";
 import { proxyRefs } from "../../reactivity/src/ref.js";
-import { EMPTY_OBJ, isFunction, isObject } from "../../shared/src/general.js";
+import {
+  EMPTY_OBJ,
+  isFunction,
+  isObject,
+  NOOP,
+} from "../../shared/src/general.js";
 import { ShapeFlags } from "../../shared/src/shapeFlags.js";
 import { AppContext, createAppContext } from "./compat/apiCreateApp.js";
 import {
@@ -19,14 +29,17 @@ import {
   NormalizedPropsOptions,
   normalizePropsOptions,
 } from "./componentProps.js";
-import { ComponentPublicInstance } from "./componentPublicInstance.js";
+import {
+  ComponentPublicInstance,
+  RuntimeCompiledPublicInstanceProxyHandlers,
+} from "./componentPublicInstance.js";
 import { SuspenseBoundary } from "./components/Suspense.js";
 import { InternalSlots } from "./componentSlots.js";
 import { Directive } from "./directives.js";
 import { LifecycleHooks } from "./enums.js";
 import { callWithErrorHandling, ErrorCodes } from "./errorHandling.js";
 import { SchedulerJob } from "./scheduler.js";
-import { VNode } from "./vnode.js";
+import { VNode, VNodeChild } from "./vnode.js";
 
 export let currentInstance: ComponentInternalInstance | null = null;
 export let isInSSRComponentSetup = false;
@@ -53,7 +66,18 @@ export type ConcreteComponent<
   | FunctionalComponent<Props, E, S>;
 
 export type LifecycleHook<TFn = Function> = TFn[] | null;
-export type InternalRenderFunction = {};
+export type InternalRenderFunction = {
+  (
+    ctx: ComponentPublicInstance,
+    cache: ComponentInternalInstance["renderCache"],
+    // for compiler-optimized bindings
+    $props: ComponentInternalInstance["props"],
+    $setup: ComponentInternalInstance["setupState"],
+    $data: ComponentInternalInstance["data"],
+    $options: ComponentInternalInstance["ctx"]
+  ): VNodeChild;
+  _rc?: boolean; // isRuntimeCompiled
+};
 
 export type SetupContext = {};
 /**
@@ -348,6 +372,30 @@ export interface ClassComponent {
   __vccOpts: ComponentOptions;
 }
 
+type CompileFunction = (
+  template: string | object,
+  options?: CompilerOptions
+) => InternalRenderFunction;
+
+let compile: CompileFunction | undefined;
+let installWithProxy: (i: ComponentInternalInstance) => void;
+
+/**
+ * 註冊運行時編譯器（Runtime Compiler）。
+ * @param _compile 編譯模板的關鍵函數
+ */
+export function registerRuntimeCompiler(_compile: any): void {
+  compile = _compile;
+  installWithProxy = (i) => {
+    if (i.render!._rc) {
+      i.withProxy = new Proxy(
+        i.ctx,
+        RuntimeCompiledPublicInstanceProxyHandlers
+      );
+    }
+  };
+}
+
 const emptyAppContext = createAppContext();
 let uid = 0;
 
@@ -500,12 +548,11 @@ function setupStatefulComponent(
 export function handleSetupResult(
   instance: ComponentInternalInstance,
   setupResult: unknown,
-  isSSR: boolean,
-):void{
-  if(isFunction(setupResult)){
-
-  }else if(isObject(setupResult)){
-    instance.setupState = proxyRefs(setupResult)
+  isSSR: boolean
+): void {
+  if (isFunction(setupResult)) {
+  } else if (isObject(setupResult)) {
+    instance.setupState = proxyRefs(setupResult);
   }
   finishComponentSetup(instance, isSSR);
 }
@@ -513,5 +560,18 @@ export function handleSetupResult(
 export function finishComponentSetup(
   instance: ComponentInternalInstance,
   isSSR: boolean,
-  skipOptions?: boolean,
-){}
+  skipOptions?: boolean
+): void {
+  const Component = instance.type as ComponentOptions;
+
+  if (!instance.render && compile && !Component.render) {
+    if (!isSSR) {
+      const template = Component.template; //{{ test }}
+      if (template) {
+        // 正式渲染
+        Component.render = compile(template);
+      }
+    }
+    instance.render = (Component.render || NOOP) as InternalRenderFunction;
+  }
+}

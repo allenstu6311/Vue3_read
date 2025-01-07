@@ -1,6 +1,11 @@
 import { Data } from "./component.js";
 import { EmitsOptions } from "./componentEmits.js";
-import { ComponentInjectOptions, ComponentOptionsBase, ComputedOptions, MethodOptions } from "./componentOptions.js";
+import {
+  ComponentInjectOptions,
+  ComponentOptionsBase,
+  ComputedOptions,
+  MethodOptions,
+} from "./componentOptions.js";
 import { SlotsType } from "./componentSlots.js";
 
 export type ComponentPublicInstance<
@@ -16,7 +21,9 @@ export type ComponentPublicInstance<
   Options = ComponentOptionsBase<any, any, any, any, any, any, any, any, any>,
   I extends ComponentInjectOptions = {},
   S extends SlotsType = {},
-  Exposed extends string = '',
+  Exposed extends string = "",
   TypeRefs extends Data = {},
-  TypeEl extends Element = any,
-> = {}
+  TypeEl extends Element = any
+> = {};
+
+export const RuntimeCompiledPublicInstanceProxyHandlers: ProxyHandler<any> = {};

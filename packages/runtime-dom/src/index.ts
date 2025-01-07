@@ -76,3 +76,5 @@ function normalizeContainer(
   }
   return container as any;
 }
+
+export * from "../../runtime-core/src/index.js";

@@ -1,6 +1,6 @@
 tsc -w 並開啟根目錄下的index.html
  
-# 目前看到 component.ts finishComponentSetup
+# 目前看到 vue/src/index.ts compile方法準備生成code
 
 
 #需要了解
