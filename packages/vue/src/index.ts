@@ -1,4 +1,5 @@
-import { CompilerOptions } from "../../compiler-core/options.js";
+import { CompilerOptions } from "./../../compiler-core/src/options.js";
+import { compile } from "../../compiler-dom/index.js";
 import { registerRuntimeCompiler } from "../../runtime-core/src/component.js";
 import { RenderFunction } from "../../runtime-core/src/componentOptions.js";
 import { genCacheKey, isString, NOOP } from "../../shared/src/general.js";
@@ -18,7 +19,8 @@ function compileToFunction(
   }
   const key = genCacheKey(template, options);
 
-  //   const { code } = compile(template)
+  // const { code } = compile(template);
+  compile(template);
   return null as any;
 }
 registerRuntimeCompiler(compileToFunction);

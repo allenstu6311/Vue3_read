@@ -1,4 +1,4 @@
-import { CompilerOptions } from "../../compiler-core/options.js";
+import { CompilerOptions } from "../../compiler-core/src/options.js";
 import {
   pauseTracking,
   ReactiveEffect,
