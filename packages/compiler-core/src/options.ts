@@ -1,9 +1,16 @@
 import { ElementNode, Namespace, Namespaces } from "./ast";
+import { CompilerCompatOptions } from "./compact/compatConfig";
 
 export type CompilerOptions = {};
 export type CodegenResult = {};
 
-export interface ParserOptions {
+export interface ErrorHandlingOptions {
+  onWarn?: (warning: any) => void;
+  onError?: (error: any) => void;
+}
+export interface ParserOptions
+  extends ErrorHandlingOptions,
+    CompilerCompatOptions {
   /**
    * Base mode is platform agnostic and only parses HTML-like template syntax,
    * treating all tags the same way. Specific tag parsing behavior can be
@@ -84,5 +91,5 @@ export interface ParserOptions {
    * parse expressions in bindings and interpolations.
    * https://babeljs.io/docs/en/next/babel-parser#plugins
    */
-  //   expressionPlugins?: ParserPlugin[]
+  expressionPlugins?: any[];
 }
