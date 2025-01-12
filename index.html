@@ -6,7 +6,9 @@
     <title>Vue3 Write</title>
   </head>
   <body>
-    <div id="app">{{test}}</div>
+    <div id="app">
+      <div class="test">{{test}}</div>
+    </div>
     <script
       type="module"
       src="./dist/packages/runtime-dom/src/index.js"
@@ -19,9 +21,10 @@
       // debugger;
       const app = createApp({
         setup() {
-          const test = ref({
-            data: 1,
-          });
+          // const test = ref({
+          //   data: 1,
+          // });
+          const test = ref("1")
           // console.log('test',test.value);
 
           return {
