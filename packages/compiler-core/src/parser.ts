@@ -175,5 +175,5 @@ export function baseParse(input: string, options?: ParserOptions): RootNode {
 
   const root = (currentRoot = createRoot([], input));
   tokenizer.parse(currentInput);
-  return null as any;
+  return root;
 }

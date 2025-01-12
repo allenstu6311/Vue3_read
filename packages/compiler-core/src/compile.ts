@@ -9,6 +9,7 @@ export function baseCompile(
 ): CodegenResult {
   const resolvedOptions = extend({}, options);
   const ast = isString(source) ? baseParse(source, resolvedOptions) : source;
-
+  // console.log('ast',ast);
+  
   return null as any;
 }

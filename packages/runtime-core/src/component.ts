@@ -381,7 +381,7 @@ let compile: CompileFunction | undefined;
 let installWithProxy: (i: ComponentInternalInstance) => void;
 
 /**
- * 註冊運行時編譯器（Runtime Compiler）。
+ * 註冊編譯器（Runtime Compiler）。
  * @param _compile 編譯模板的關鍵函數
  */
 export function registerRuntimeCompiler(_compile: any): void {
