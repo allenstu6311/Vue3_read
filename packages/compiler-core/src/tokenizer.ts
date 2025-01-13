@@ -75,9 +75,8 @@ export enum CharCodes {
   RightSquare = 93,
 }
 
-const defaultDelimitersOpen = new Uint8Array([123, 123]) // "{{"
-const defaultDelimitersClose = new Uint8Array([125, 125]) // "}}"
-
+const defaultDelimitersOpen = new Uint8Array([123, 123]); // "{{"
+const defaultDelimitersClose = new Uint8Array([125, 125]); // "}}"
 
 /**
  * 標籤屬性的引號類型
@@ -102,196 +101,195 @@ export enum QuoteType {
 }
 
 export enum State {
-  /** 
+  /**
    * 文本状态，例如解析普通文本内容。
    * 示例：`Hello World`
    */
   Text = 1,
 
   // 插值相关
-  /** 
+  /**
    * 插值表达式的起始状态，解析 `{{`。
    * 示例：`{{name}}` 中的 `{{`
    */
   InterpolationOpen,
-  /** 
+  /**
    * 插值表达式的内容状态，解析表达式主体。
    * 示例：`{{name}}` 中的 `name`
    */
   Interpolation,
-  /** 
+  /**
    * 插值表达式的结束状态，解析 `}}`。
    * 示例：`{{name}}` 中的 `}}`
    */
   InterpolationClose,
 
   // 标签相关
-  /** 
+  /**
    * 标签名称之前的状态，例如 `<` 之后。
    * 示例：`<div>` 中的 `<`
    */
   BeforeTagName,
-  /** 
+  /**
    * 标签名称状态，解析标签名称。
    * 示例：`<div>` 中的 `div`
    */
   InTagName,
-  /** 
+  /**
    * 自闭合标签状态，例如 `/>`。
    * 示例：`<img />`
    */
   InSelfClosingTag,
-  /** 
+  /**
    * 闭合标签名称之前的状态。
    * 示例：`</div>` 中的 `</`
    */
   BeforeClosingTagName,
-  /** 
+  /**
    * 闭合标签名称状态，解析标签名称。
    * 示例：`</div>` 中的 `div`
    */
   InClosingTagName,
-  /** 
+  /**
    * 闭合标签名称之后的状态。
    * 示例：`</div>` 中的 `>`
    */
   AfterClosingTagName,
 
   // 属性相关
-  /** 
+  /**
    * 属性名称之前的状态。
    * 示例：`<div id="app">` 中的空格
    */
   BeforeAttrName,
-  /** 
+  /**
    * 属性名称状态。
    * 示例：`<div id="app">` 中的 `id`
    */
   InAttrName,
-  /** 
+  /**
    * 指令名称状态。
    * 示例：`<div v-model="name">` 中的 `v-model`
    */
   InDirName,
-  /** 
+  /**
    * 指令参数状态。
    * 示例：`<div :name="value">` 中的 `name`
    */
   InDirArg,
-  /** 
+  /**
    * 动态指令参数状态。
    * 示例：`<div :[name]="value">` 中的 `[name]`
    */
   InDirDynamicArg,
-  /** 
+  /**
    * 指令修饰符状态。
    * 示例：`<div v-model.trim="value">` 中的 `.trim`
    */
   InDirModifier,
-  /** 
+  /**
    * 属性名称之后的状态。
    * 示例：`<div id="app">` 中的 `=`
    */
   AfterAttrName,
-  /** 
+  /**
    * 属性值之前的状态。
    * 示例：`<div id="app">` 中的 `=`
    */
   BeforeAttrValue,
-  /** 
+  /**
    * 属性值双引号状态。
    * 示例：`<div id="app">` 中的 `"app"`
    */
   InAttrValueDq,
-  /** 
+  /**
    * 属性值单引号状态。
    * 示例：`<div id='app'>` 中的 `'app'`
    */
   InAttrValueSq,
-  /** 
+  /**
    * 无引号的属性值状态。
    * 示例：`<div id=app>` 中的 `app`
    */
   InAttrValueNq,
 
   // 声明相关
-  /** 
+  /**
    * 声明之前的状态，例如 `<!`。
    * 示例：`<!DOCTYPE html>` 中的 `<!`
    */
   BeforeDeclaration,
-  /** 
+  /**
    * 声明内容状态。
    * 示例：`<!DOCTYPE html>` 中的 `DOCTYPE html`
    */
   InDeclaration,
 
   // 处理指令相关
-  /** 
+  /**
    * 处理指令状态，例如 `<?`。
    * 示例：`<?xml version="1.0"?>` 中的 `<?`
    */
   InProcessingInstruction,
 
   // 注释与CDATA相关
-  /** 
+  /**
    * 注释开始之前的状态，例如 `<!--`。
    * 示例：`<!-- comment -->`
    */
   BeforeComment,
-  /** 
+  /**
    * CDATA序列状态。
    * 示例：`<![CDATA[<content>]]>` 中的 `<![CDATA[`
    */
   CDATASequence,
-  /** 
+  /**
    * 特殊注释状态。
    * 示例：`<!-- [if IE]> special <![endif] -->`
    */
   InSpecialComment,
-  /** 
+  /**
    * 注释内容状态。
    * 示例：`<!-- comment -->` 中的 `comment`
    */
   InCommentLike,
 
   // 特殊标签相关
-  /** 
+  /**
    * 判断是否为 `<script` 或 `<style` 标签的状态。
    * 示例：`<script>` 或 `<style>`
    */
   BeforeSpecialS,
-  /** 
+  /**
    * 判断是否为 `<title` 或 `<textarea` 标签的状态。
    * 示例：`<title>` 或 `<textarea>`
    */
   BeforeSpecialT,
-  /** 
+  /**
    * 特殊标签的起始序列状态。
    * 示例：`<script>` 中的 `<script`
    */
   SpecialStartSequence,
-  /** 
+  /**
    * RCDATA模式状态，用于解析内容。
    * 示例：`<textarea>` 标签中的内容
    */
   InRCDATA,
 
   // 实体相关
-  /** 
+  /**
    * HTML实体状态。
    * 示例：`&amp;` 中的 `&amp;`
    */
   InEntity,
 
   // SFC根标签相关
-  /** 
+  /**
    * SFC（单文件组件）根标签名称状态。
    * 示例：`<template>` 或 `<script>`
    */
   InSFCRootTagName,
 }
-
 
 export interface Callbacks {
   /**
@@ -439,7 +437,7 @@ export function isWhitespace(c: number): boolean {
     c === CharCodes.Tab ||
     c === CharCodes.FormFeed ||
     c === CharCodes.CarriageReturn
-  )
+  );
 }
 
 /**
@@ -449,18 +447,15 @@ function isTagStartChar(c: number): boolean {
   return (
     (c >= CharCodes.LowerA && c <= CharCodes.LowerZ) ||
     (c >= CharCodes.UpperA && c <= CharCodes.UpperZ)
-  )
+  );
 }
 
 /**
  * 當前位置是結束標籤或空白 "/" || ">"
  */
 function isEndOfTagSection(c: number): boolean {
-  return c === CharCodes.Slash || c === CharCodes.Gt || isWhitespace(c)
+  return c === CharCodes.Slash || c === CharCodes.Gt || isWhitespace(c);
 }
-
-
-
 
 /**
  * 蒐集標籤中的標記
@@ -474,46 +469,45 @@ export default class Tokenizer {
   /**
    * 臨時儲存內容的緩衝區
    */
-  private buffer = ''
+  private buffer = "";
   /**
    * 編譯位置
    */
-  private index = 0
+  private index = 0;
   /**
    * 記錄換行位置
    */
-  private newlines: number[] = []
+  private newlines: number[] = [];
   /**
    * 標記器目前所處的狀態
    */
-  public state: State = State.Text
+  public state: State = State.Text;
   /**
    * 目前讀到的標籤的開頭
    */
-  public sectionStart = 0
+  public sectionStart = 0;
   /**
    * in v-pre
    */
-  public inVPre = false
+  public inVPre = false;
   /**
    * "{{"
    */
-  public delimiterOpen: Uint8Array = defaultDelimitersOpen
+  public delimiterOpen: Uint8Array = defaultDelimitersOpen;
   /**
    * "}}"
    */
-  public delimiterClose: Uint8Array = defaultDelimitersClose
+  public delimiterClose: Uint8Array = defaultDelimitersClose;
   /**
-   * 
+   *
    */
-  private delimiterIndex = -1
+  private delimiterIndex = -1;
   /**
-   * 
+   *
    */
-  public inRCDATA = false
+  public inRCDATA = false;
 
-
-  constructor(private readonly stack: any[], private readonly cbs: Callbacks) { }
+  constructor(private readonly stack: any[], private readonly cbs: Callbacks) {}
 
   /**
    * 取得表達式開始與結束的位置不包含"{{}}"
@@ -533,10 +527,12 @@ export default class Tokenizer {
     return {
       column,
       line,
-      offset: index
-    }
+      offset: index,
+    };
   }
-
+  /**
+   * 處理普通文本節點，將文本內容儲存或進一步解析
+   */
   private stateText(c: number): void {
     if (c === CharCodes.Lt) {
       if (this.index > this.sectionStart) {
@@ -544,16 +540,19 @@ export default class Tokenizer {
       }
       this.state = State.BeforeTagName;
       this.sectionStart = this.index;
-
     } else if (!this.inVPre && c === this.delimiterOpen[0]) {
+      console.log(" else if");
       this.state = State.InterpolationOpen;
       this.delimiterIndex = 0;
-      this.stateInterpolationOpen(c)
+      this.stateInterpolationOpen(c);
     }
   }
-
+  /**
+   * 處理插值語法的起始符號 "{{"，進入插值解析階段
+   */
   private stateInterpolationOpen(c: number): void {
-    if (c === this.delimiterOpen[this.delimiterIndex]) { //c 是否為 "{{"
+    if (c === this.delimiterOpen[this.delimiterIndex]) {
+      //c 是否為 "{{"
       if (this.delimiterIndex === this.delimiterOpen.length - 1) {
         const start = this.index + 1 - this.delimiterOpen.length;
         if (start > this.sectionStart) {
@@ -564,72 +563,97 @@ export default class Tokenizer {
       } else {
         this.delimiterIndex++;
       }
-
     } else {
       this.state = State.Text;
       this.stateText(c);
     }
   }
-
+  /**
+   * 處理插值內容，例如變數名稱或表達式
+   */
   private stateInterpolation(c: number): void {
     if (c === this.delimiterClose[0]) {
       this.state = State.InterpolationClose;
       this.delimiterIndex = 0;
-      this.stateInterpolationClose(c)
+      this.stateInterpolationClose(c);
     }
   }
-
+  /**
+   * 處理插值語法的結束符號 "}}"，結束插值解析階段
+   */
   private stateInterpolationClose(c: number) {
-    if (c === this.delimiterClose[this.delimiterIndex]) {// c === "{{"      
+    if (c === this.delimiterClose[this.delimiterIndex]) {
+      // c === "{{"
       if (this.delimiterIndex === this.delimiterClose.length - 1) {
-        this.cbs.oninterpolation(this.sectionStart, this.index + 1)
+        this.cbs.oninterpolation(this.sectionStart, this.index + 1);
         if (this.inRCDATA) {
-          this.state = State.InRCDATA
+          this.state = State.InRCDATA;
         } else {
           this.state = State.Text;
         }
-        this.sectionStart = this.index + 1
+        this.sectionStart = this.index + 1;
       } else {
-        this.delimiterIndex++
+        this.delimiterIndex++;
       }
     } else {
-      this.state = State.Interpolation
-      this.stateInterpolation(c)
+      this.state = State.Interpolation;
+      this.stateInterpolation(c);
     }
   }
-
+  /**
+   * 處理 `<` 符號後的狀態，準備進入標籤名稱解析
+   */
   private stateBeforeTagName(c: number): void {
     if (c === CharCodes.ExclamationMark) {
-
     } else if (c === CharCodes.Questionmark) {
-
     } else if (isTagStartChar(c)) {
+      // 一開始會走這裡
       this.sectionStart = this.index;
       this.state = State.InTagName;
     } else if (c === CharCodes.Slash) {
-      this.state = State.BeforeClosingTagName
+      this.state = State.BeforeClosingTagName;
     } else {
-      // 應該是純文本
-      this.state = State.Text
-      this.stateText(c)
+      this.state = State.Text;
+      this.stateText(c);
     }
   }
-
+  /**
+   * 處理標籤名稱（如 `<div>` 中的 "div"），直到解析完整標籤名稱
+   */
   private stateInTagName(c: number): void {
     if (isEndOfTagSection(c)) {
       this.handleTagName(c);
     }
   }
-
+  /**
+   * 賦值currentOpenTag
+   */
   private handleTagName(c: number) {
     this.cbs.onopentagname(this.sectionStart, this.index);
     this.sectionStart = -1;
     this.state = State.BeforeAttrName;
-    this.stateBeforeAttrName(c)
+    this.stateBeforeAttrName(c);
   }
-
+  /**
+   * 處理屬性名稱前的解析狀態。
+   * 1. 如果當前字符為 `>`，表示標籤結尾，調用 `onopentagend` 並進入文本狀態。
+   * 2. 如果當前字符非空白，開始解析屬性名稱。
+   */
   private stateBeforeAttrName(c: number): void {
-
+    if (c === CharCodes.Gt) {
+      this.cbs.onopentagend(this.index);
+      this.state = State.Text;
+      this.sectionStart = this.index + 1;
+    } else if (!isWhitespace(c)) {
+      this.handleAttrStart(c);
+    }
+  }
+  /**
+   * 當檢測到屬性名稱開始時的處理邏輯
+   */
+  private handleAttrStart(c: number) {
+    this.state = State.InAttrName;
+    this.sectionStart = this.index;
   }
 
   /**
@@ -641,9 +665,12 @@ export default class Tokenizer {
     while (this.index < this.buffer.length) {
       const c = this.buffer.charCodeAt(this.index); //取得單個字符串
       // console.log('tag', this.buffer.charAt(this.index),'c',c);
+      // console.log("c", this.buffer.charAt(this.index), c);
+
       if (c === CharCodes.NewLine) {
-        this.newlines.push(this.index)
+        this.newlines.push(this.index);
       }
+      // console.log("font", this.buffer.charAt(this.index));
       switch (this.state) {
         case State.Text: {
           // 處理普通文本節點，將文本內容儲存或進一步解析

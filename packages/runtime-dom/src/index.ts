@@ -52,6 +52,8 @@ export const createApp = (...args: any) => {
     }
 
     const proxy = mount(container, false, resolveRootNamespace(container));
+    // console.log("proxy", proxy);
+
     return proxy;
   };
   // console.log("createApp", app);

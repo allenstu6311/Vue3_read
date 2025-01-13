@@ -1,6 +1,18 @@
 import Tokenizer, { isWhitespace, ParseMode } from "./tokenizer.js";
 import { extend, NO } from "../../shared/src/general.js";
-import { ConstantTypes, createRoot, createSimpleExpression, ElementNode, ElementTypes, Namespaces, NodeTypes, RootNode, SimpleExpressionNode, SourceLocation, TemplateChildNode } from "./ast.js";
+import {
+  ConstantTypes,
+  createRoot,
+  createSimpleExpression,
+  ElementNode,
+  ElementTypes,
+  Namespaces,
+  NodeTypes,
+  RootNode,
+  SimpleExpressionNode,
+  SourceLocation,
+  TemplateChildNode,
+} from "./ast.js";
 import { ParserOptions } from "./options.js";
 import { CompilerCompatOptions } from "./compact/compatConfig";
 import { defaultOnError, defaultOnWarn } from "./errors.js";
@@ -38,19 +50,19 @@ export const defaultParserOptions: MergedParserOptions = {
 let currentInput = "";
 let currentOptions: MergedParserOptions = defaultParserOptions;
 let currentRoot: RootNode | null = null;
-let currentOpenTag: ElementNode | null = null
+let currentOpenTag: ElementNode | null = null;
 const stack: ElementNode[] = [];
 let inPre = 0;
 
 const tokenizer = new Tokenizer(stack, {
   ontext(start, end) {
-    onText(getSlice(start, end), start, end)
+    onText(getSlice(start, end), start, end);
   },
-  ontextentity(char, start, end) { },
-  oncomment(start, end) { },
+  ontextentity(char, start, end) {},
+  oncomment(start, end) {},
   oninterpolation(start, end) {
     if (inPre) {
-      return onText(getSlice(start, end), start, end)
+      return onText(getSlice(start, end), start, end);
     }
     let innerStart = start + tokenizer.delimiterOpen.length;
     let innerEnd = end - tokenizer.delimiterClose.length;
@@ -62,16 +74,15 @@ const tokenizer = new Tokenizer(stack, {
       innerEnd--;
     }
 
-    let exp = getSlice(innerStart, innerEnd);//{{ test }} => test
+    let exp = getSlice(innerStart, innerEnd); //{{ test }} => test
 
     addNode({
       type: NodeTypes.INTERPOLATION,
       content: createExp(exp, false, getLoc(innerStart, innerEnd)),
       loc: getLoc(start, end),
-    })
-
+    });
   },
-  onopentagname(start, end) { 
+  onopentagname(start, end) {
     const name = getSlice(start, end);
     currentOpenTag = {
       type: NodeTypes.ELEMENT,
@@ -82,23 +93,23 @@ const tokenizer = new Tokenizer(stack, {
       children: [],
       loc: getLoc(start - 1, end),
       codegenNode: undefined,
-    }
+    };
   },
-  onopentagend(end) { },
-  onclosetag(start, end) { },
-  onattribend(quote, end) { },
-  onattribentity(char, start, end) { },
-  onattribname(start, end) { },
-  onattribnameend(end) { },
-  onattribdata(start, end) { },
-  onselfclosingtag(end) { },
-  ondirname(start, end) { },
-  ondirarg(start, end) { },
-  ondirmodifier(start, end) { },
-  oncdata(start, end) { },
-  onprocessinginstruction(start, end) { },
-  onend() { },
-  onerr(code, index) { },
+  onopentagend(end) {},
+  onclosetag(start, end) {},
+  onattribend(quote, end) {},
+  onattribentity(char, start, end) {},
+  onattribname(start, end) {},
+  onattribnameend(end) {},
+  onattribdata(start, end) {},
+  onselfclosingtag(end) {},
+  ondirname(start, end) {},
+  ondirarg(start, end) {},
+  ondirmodifier(start, end) {},
+  oncdata(start, end) {},
+  onprocessinginstruction(start, end) {},
+  onend() {},
+  onerr(code, index) {},
 });
 
 /**
@@ -107,17 +118,17 @@ const tokenizer = new Tokenizer(stack, {
 function onText(content: string, start: number, end: number) {
   const tag = stack[0] && stack[0].tag;
   // console.log('content', content);
-  if (tag !== 'script' && tag !== 'style' && content.includes('&')) {
+  if (tag !== "script" && tag !== "style" && content.includes("&")) {
     content = currentOptions.decodeEntities!(content, false);
   }
 }
 
 function getSlice(start: number, end: number) {
-  return currentInput.slice(start, end)
+  return currentInput.slice(start, end);
 }
 
 function addNode(node: TemplateChildNode) {
-  (stack[0] || currentRoot).children.push(node)
+  (stack[0] || currentRoot).children.push(node);
 }
 
 function getLoc(start: number, end?: number): SourceLocation {
@@ -127,7 +138,7 @@ function getLoc(start: number, end?: number): SourceLocation {
     end: end == null ? end : tokenizer.getPos(end),
     // @ts-expect-error allow late attachment
     source: end == null ? end : getSlice(start, end),
-  }
+  };
 }
 
 enum ExpParseMode {
@@ -138,15 +149,17 @@ enum ExpParseMode {
 }
 
 function createExp(
-  content: SimpleExpressionNode['content'],
-  isStatic: SimpleExpressionNode['isStatic'] = false,
+  content: SimpleExpressionNode["content"],
+  isStatic: SimpleExpressionNode["isStatic"] = false,
   loc: SourceLocation,
   constType: ConstantTypes = ConstantTypes.NOT_CONSTANT,
   parseMode = ExpParseMode.Normal
-){
+) {
   const exp = createSimpleExpression(content, isStatic, loc, constType);
-  return exp
+  return exp;
 }
+
+function endOpenTag(end: number) {}
 
 /**
  *
@@ -170,8 +183,8 @@ export function baseParse(input: string, options?: ParserOptions): RootNode {
     currentOptions.parseMode === "html"
       ? ParseMode.HTML
       : currentOptions.parseMode === "sfc"
-        ? ParseMode.SFC
-        : ParseMode.BASE;
+      ? ParseMode.SFC
+      : ParseMode.BASE;
 
   const root = (currentRoot = createRoot([], input));
   tokenizer.parse(currentInput);

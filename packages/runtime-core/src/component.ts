@@ -494,7 +494,7 @@ export function createComponentInstance(
 }
 
 /**
- * 是否唯有狀態的組件
+ * 是否為有狀態的組件
  */
 export function isStatefulComponent(
   instance: ComponentInternalInstance
@@ -540,6 +540,7 @@ function setupStatefulComponent(
     );
     resetTracking();
     // missing reset
+    // console.log("setupResult", setupResult);
 
     handleSetupResult(instance, setupResult, isSSR);
   }

@@ -145,7 +145,6 @@ export interface AppContext {
 
 /**
  * 全局配置 (AppConfig) 介面
- * 用於控制應用的行為和設置
  */
 export function createAppContext(): AppContext {
   return {
