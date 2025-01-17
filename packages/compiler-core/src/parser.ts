@@ -177,7 +177,7 @@ const tokenizer = new Tokenizer(stack, {
   },
   onattribnameend(end) {
     const start = currentProp!.loc.start.offset;
-    const name = getSlice(start, end);
+    const name = getSlice(start, end); // class, id
 
     if (currentProp?.type === NodeTypes.DIRECTIVE) {
       currentProp.rawName = name;

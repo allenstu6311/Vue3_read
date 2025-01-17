@@ -661,8 +661,7 @@ export default class Tokenizer {
   }
 
   /**
-   * 進到"="開始解析屬性內容，賦值currentProp
-   * @param c
+   * 賦值currentProp，處理"="
    */
   private stateInAttrName(c: number): void {
     if (c === CharCodes.Eq || isEndOfTagSection(c)) {
@@ -683,7 +682,9 @@ export default class Tokenizer {
       this.state = State.BeforeAttrValue;
     }
   }
-
+  /**
+   * "" or ''
+   */
   private stateBeforeAttrValue(c: number): void {
     if (c === CharCodes.DoubleQuote) {
       this.state = State.InAttrValueDq;
@@ -691,7 +692,9 @@ export default class Tokenizer {
     } else if (c === CharCodes.SingleQuote) {
     }
   }
-
+  /**
+   * 取得屬性值(雙引號)
+   */
   private stateInAttrValueDoubleQuotes(c: number): void {
     this.handleInAttrValue(c, CharCodes.DoubleQuote);
   }
@@ -722,6 +725,10 @@ export default class Tokenizer {
     return false;
   }
 
+  /**
+   * 取得屬性值細節
+   * @param quote 引號類型
+   */
   private handleInAttrValue(c: number, quote: number) {
     if (c === quote || this.fastForwardTo(quote)) {
       this.cbs.onattribdata(this.sectionStart, this.index);
