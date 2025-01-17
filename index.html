@@ -7,33 +7,35 @@
   </head>
   <body>
     <div id="app">
-      <div class="test">{{test}}</div>
+      <div class="className">{{test}}</div>
     </div>
-    <script
-      type="module"
-      src="./dist/packages/runtime-dom/src/index.js"
-    ></script>
-    <script type="module">
-      // import { createApp } from "./dist/packages/runtime-dom/src/index.js";
-      // import { ref } from "./dist/packages/reactivity/src/ref.js";
-      import { createApp, ref } from "./dist/packages/vue/src/index.js";
-      // const app = createApp
-      // debugger;
-      const app = createApp({
-        setup() {
-          // const test = ref({
-          //   data: 1,
-          // });
-          const test = ref("1")
-          // console.log('test',test.value);
 
-          return {
-            test,
-          };
-        },
-      }).mount("#app");
+      <script
+        type="module"
+        src="./dist/packages/runtime-dom/src/index.js"
+      ></script>
+      <script type="module">
+        // import { createApp } from "./dist/packages/runtime-dom/src/index.js";
+        // import { ref } from "./dist/packages/reactivity/src/ref.js";
+        import { createApp, ref } from "./dist/packages/vue/src/index.js";
+        // const app = createApp
+        // debugger;
+        const app = createApp({
+          setup() {
+            // const test = ref({
+            //   data: 1,
+            // });
+            const test = ref("1");
+            // console.log('test',test.value);
 
-      // console.log('app',app);
-    </script>
+            return {
+              test,
+            };
+          },
+        }).mount("#app");
+
+        // console.log('app',app);
+      </script>
+    </p>
   </body>
 </html>

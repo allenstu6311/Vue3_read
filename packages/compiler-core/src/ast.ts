@@ -1,5 +1,4 @@
-
-type BabelNode = any
+type BabelNode = any;
 
 export enum NodeTypes {
   ROOT,
@@ -57,7 +56,7 @@ export enum ConstantTypes {
   CAN_STRINGIFY,
 }
 
-export type JSChildNode = {}
+export type JSChildNode = {};
 
 /**
  * 代碼在文檔中的具體位置
@@ -112,45 +111,75 @@ export enum ElementTypes {
 }
 
 export interface TextNode extends Node {
-  type: NodeTypes.TEXT
-  content: string
+  type: NodeTypes.TEXT;
+  content: string;
 }
 
 export interface AttributeNode extends Node {
-  type: NodeTypes.ATTRIBUTE
-  name: string
-  nameLoc: SourceLocation
-  value: TextNode | undefined
+  type: NodeTypes.ATTRIBUTE;
+  name: string;
+  nameLoc: SourceLocation;
+  value: TextNode | undefined;
 }
 
 export type Namespace = number;
 
-export type ElementNode = BaseElementNode | PlainElementNode
+export type ElementNode = BaseElementNode | PlainElementNode;
 
-export interface DirectiveNode extends Node {}
+export type ExpressionNode = SimpleExpressionNode | CompoundExpressionNode;
 
-export type TemplateChildNode = {}
+export interface CompoundExpressionNode extends Node {}
+
+export interface ForParseResult {
+  source: ExpressionNode;
+  value: ExpressionNode | undefined;
+  key: ExpressionNode | undefined;
+  index: ExpressionNode | undefined;
+  finalized: boolean;
+}
+
+export interface DirectiveNode extends Node {
+  type: NodeTypes.DIRECTIVE;
+  /**
+   * the normalized name without prefix or shorthands, e.g. "bind", "on"
+   */
+  name: string;
+  /**
+   * the raw attribute name, preserving shorthand, and including arg & modifiers
+   * this is only used during parse.
+   */
+  rawName?: string;
+  exp: ExpressionNode | undefined;
+  arg: ExpressionNode | undefined;
+  modifiers: SimpleExpressionNode[];
+  /**
+   * optional property to cache the expression parse result for v-for
+   */
+  forParseResult?: ForParseResult;
+}
+
+export type TemplateChildNode = {};
 
 export interface BaseElementNode extends Node {
-  type: NodeTypes.ELEMENT
-  ns: Namespace
-  tag: string
-  tagType: ElementTypes
-  props: Array<AttributeNode | DirectiveNode>
-  children: TemplateChildNode[]
-  isSelfClosing?: boolean
-  innerLoc?: SourceLocation // only for SFC root level elements
+  type: NodeTypes.ELEMENT;
+  ns: Namespace;
+  tag: string;
+  tagType: ElementTypes;
+  props: Array<AttributeNode | DirectiveNode>;
+  children: TemplateChildNode[];
+  isSelfClosing?: boolean;
+  innerLoc?: SourceLocation; // only for SFC root level elements
 }
 
 export interface PlainElementNode extends BaseElementNode {
-  tagType: ElementTypes.ELEMENT
-  codegenNode: undefined
-  ssrCodegenNode?: TemplateLiteral
+  tagType: ElementTypes.ELEMENT;
+  codegenNode: undefined;
+  ssrCodegenNode?: TemplateLiteral;
 }
 
 export interface TemplateLiteral extends Node {
-  type: NodeTypes.JS_TEMPLATE_LITERAL
-  elements: (string | JSChildNode)[]
+  type: NodeTypes.JS_TEMPLATE_LITERAL;
+  elements: (string | JSChildNode)[];
 }
 
 export interface SourceLocation {
@@ -189,34 +218,34 @@ export function createRoot(children: any[], source = ""): RootNode {
 }
 
 export interface SimpleExpressionNode extends Node {
-  type: NodeTypes.SIMPLE_EXPRESSION
-  content: string
-  isStatic: boolean
-  constType: ConstantTypes
+  type: NodeTypes.SIMPLE_EXPRESSION;
+  content: string;
+  isStatic: boolean;
+  constType: ConstantTypes;
   /**
    * - `null` means the expression is a simple identifier that doesn't need
    *    parsing
    * - `false` means there was a parsing error
    */
-  ast?: BabelNode | null | false
+  ast?: BabelNode | null | false;
   /**
    * Indicates this is an identifier for a hoist vnode call and points to the
    * hoisted node.
    */
-  hoisted?: JSChildNode
+  hoisted?: JSChildNode;
   /**
    * an expression parsed as the params of a function will track
    * the identifiers declared inside the function body.
    */
-  identifiers?: string[]
-  isHandlerKey?: boolean
+  identifiers?: string[];
+  isHandlerKey?: boolean;
 }
 
 export function createSimpleExpression(
-  content: SimpleExpressionNode['content'],
-  isStatic: SimpleExpressionNode['isStatic'] = false,
+  content: SimpleExpressionNode["content"],
+  isStatic: SimpleExpressionNode["isStatic"] = false,
   loc: SourceLocation = locStub,
-  constType: ConstantTypes = ConstantTypes.NOT_CONSTANT,
+  constType: ConstantTypes = ConstantTypes.NOT_CONSTANT
 ): SimpleExpressionNode {
   return {
     type: NodeTypes.SIMPLE_EXPRESSION,
@@ -224,5 +253,5 @@ export function createSimpleExpression(
     content,
     isStatic,
     constType: isStatic ? ConstantTypes.CAN_STRINGIFY : constType,
-  }
+  };
 }

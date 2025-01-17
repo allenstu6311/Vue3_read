@@ -1,9 +1,16 @@
-import Tokenizer, { isWhitespace, ParseMode } from "./tokenizer.js";
+import Tokenizer, {
+  CharCodes,
+  isWhitespace,
+  ParseMode,
+  QuoteType,
+} from "./tokenizer.js";
 import { extend, NO } from "../../shared/src/general.js";
 import {
+  AttributeNode,
   ConstantTypes,
   createRoot,
   createSimpleExpression,
+  DirectiveNode,
   ElementNode,
   ElementTypes,
   Namespaces,
@@ -51,6 +58,10 @@ let currentInput = "";
 let currentOptions: MergedParserOptions = defaultParserOptions;
 let currentRoot: RootNode | null = null;
 let currentOpenTag: ElementNode | null = null;
+let currentProp: AttributeNode | DirectiveNode | null = null;
+let currentAttrValue = "";
+let currentAttrStartIndex = -1;
+let currentAttrEndIndex = -1;
 const stack: ElementNode[] = [];
 let inPre = 0;
 
@@ -95,13 +106,88 @@ const tokenizer = new Tokenizer(stack, {
       codegenNode: undefined,
     };
   },
-  onopentagend(end) {},
-  onclosetag(start, end) {},
-  onattribend(quote, end) {},
+  onopentagend(end) {
+    endOpenTag(end);
+  },
+  onclosetag(start, end) {
+    const name = getSlice(start, end); //</div>=>div
+    if (!currentOptions.isVoidTag(name)) {
+      let found = false;
+
+      for (let i = 0; i < stack.length; i++) {
+        const e = stack[i];
+        if (e.tag.toLowerCase() === name.toLowerCase()) {
+          found = true;
+          for (let j = 0; j <= i; j++) {
+            const el = stack.shift()!;
+            onCloseTag(el, end, j < i);
+          }
+          break;
+        }
+      }
+      if (!found) {
+        console.log("沒找到結尾標籤");
+      }
+    }
+  },
+  onattribend(quote, end) {
+    if (currentOpenTag && currentProp) {
+      setLocEnd(currentProp.loc, end); //紀錄最後位置
+
+      if (quote !== QuoteType.NoValue) {
+        if (currentProp.type === NodeTypes.ATTRIBUTE) {
+          if (currentProp.name === "class") {
+            currentAttrValue = condense(currentAttrValue).trim();
+          }
+
+          currentProp!.value = {
+            type: NodeTypes.TEXT,
+            content: currentAttrValue,
+            loc:
+              quote === QuoteType.Unquoted
+                ? getLoc(currentAttrStartIndex, currentAttrEndIndex)
+                : getLoc(currentAttrStartIndex - 1, currentAttrEndIndex + 1),
+          };
+        } else {
+          // directive
+        }
+      }
+
+      if (
+        currentProp.type !== NodeTypes.DIRECTIVE ||
+        currentProp.name !== "pre"
+      ) {
+        currentOpenTag.props.push(currentProp);
+      }
+
+      currentAttrValue = "";
+      currentAttrStartIndex = currentAttrEndIndex = -1;
+    }
+  },
   onattribentity(char, start, end) {},
-  onattribname(start, end) {},
-  onattribnameend(end) {},
-  onattribdata(start, end) {},
+  onattribname(start, end) {
+    // plain attribute
+    currentProp = {
+      type: NodeTypes.ATTRIBUTE,
+      name: getSlice(start, end),
+      nameLoc: getLoc(start, end),
+      value: undefined,
+      loc: getLoc(start),
+    };
+  },
+  onattribnameend(end) {
+    const start = currentProp!.loc.start.offset;
+    const name = getSlice(start, end);
+
+    if (currentProp?.type === NodeTypes.DIRECTIVE) {
+      currentProp.rawName = name;
+    }
+  },
+  onattribdata(start, end) {
+    currentAttrValue += getSlice(start, end); // class="name"=> name
+    if (currentAttrStartIndex < 0) currentAttrStartIndex = start;
+    currentAttrEndIndex = end;
+  },
   onselfclosingtag(end) {},
   ondirname(start, end) {},
   ondirarg(start, end) {},
@@ -121,6 +207,13 @@ function onText(content: string, start: number, end: number) {
   if (tag !== "script" && tag !== "style" && content.includes("&")) {
     content = currentOptions.decodeEntities!(content, false);
   }
+  const parent = stack[0] || currentRoot;
+
+  parent.children.push({
+    type: NodeTypes.TEXT,
+    content,
+    loc: getLoc(start, end),
+  });
 }
 
 function getSlice(start: number, end: number) {
@@ -129,6 +222,7 @@ function getSlice(start: number, end: number) {
 
 function addNode(node: TemplateChildNode) {
   (stack[0] || currentRoot).children.push(node);
+  // console.log("currentRoot", currentRoot);
 }
 
 function getLoc(start: number, end?: number): SourceLocation {
@@ -139,6 +233,55 @@ function getLoc(start: number, end?: number): SourceLocation {
     // @ts-expect-error allow late attachment
     source: end == null ? end : getSlice(start, end),
   };
+}
+
+/**
+ * 設置結尾index
+ * @param loc
+ * @param end
+ */
+function setLocEnd(loc: SourceLocation, end: number) {
+  loc.end = tokenizer.getPos(end);
+  loc.source = getSlice(loc.start.offset, end);
+}
+/**
+ * 清除文字多餘的空白，確保輸出格式標準
+ */
+function condense(str: string) {
+  let ret = "";
+  let prevCharIsWhitespace = false;
+
+  for (let i = 0; i < str.length; i++) {
+    if (isWhitespace(str.charCodeAt(i))) {
+      if (!prevCharIsWhitespace) {
+        ret += " ";
+        prevCharIsWhitespace = true;
+      }
+    } else {
+      ret += str[i];
+      prevCharIsWhitespace = false;
+    }
+  }
+  return ret;
+}
+
+/**
+ * 處理結尾標籤(不影響最後結果渲染)
+ * @param isImplied 是否為隱式閉合 <p>test(沒有結尾標籤)
+ */
+function onCloseTag(el: ElementNode, end: number, isImplied = false) {
+  if (isImplied) {
+    // implied close, end should be backtracked to close
+    // setLocEnd(el.loc, backTrack(end, CharCodes.Lt))
+  } else {
+    setLocEnd(el.loc, lookAhead(end, CharCodes.Gt) + 1);
+  }
+}
+
+function lookAhead(index: number, c: number) {
+  let i = index;
+  while (currentInput.charCodeAt(i) !== c && i < currentInput.length - 1) i++;
+  return i;
 }
 
 enum ExpParseMode {
@@ -159,7 +302,19 @@ function createExp(
   return exp;
 }
 
-function endOpenTag(end: number) {}
+function endOpenTag(end: number) {
+  addNode(currentOpenTag!);
+  const { tag, ns } = currentOpenTag!;
+
+  if (ns === Namespaces.HTML && currentOptions.isPreTag(tag)) {
+  }
+
+  if (currentOptions.isVoidTag(tag)) {
+  } else {
+    stack.unshift(currentOpenTag!);
+  }
+  currentOpenTag = null;
+}
 
 /**
  *
@@ -187,6 +342,10 @@ export function baseParse(input: string, options?: ParserOptions): RootNode {
       : ParseMode.BASE;
 
   const root = (currentRoot = createRoot([], input));
+  console.log("root", root);
   tokenizer.parse(currentInput);
+  root.loc = getLoc(0, input.length);
+  // root.children = condenseWhitespace(root.children)
+
   return root;
 }

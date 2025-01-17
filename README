@@ -1,6 +1,6 @@
 tsc -w 並開啟根目錄下的index.html
  
-# 目前看到 endOpenTag
+# 目前看到 condenseWhitespace
 
 
 #需要了解

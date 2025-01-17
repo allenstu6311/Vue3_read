@@ -377,6 +377,7 @@ export interface Callbacks {
 
   /**
    * 處理指令名稱的回調。
+   * v-if="data"=>data, id="app"=app
    * @param start 指令名稱開始的索引位置。
    * @param endIndex 指令名稱結束的索引位置（不包括）。
    */
@@ -458,7 +459,7 @@ function isEndOfTagSection(c: number): boolean {
 }
 
 /**
- * 蒐集標籤中的標記
+ * 掃描標籤中的文字並蒐集屬性及渲染純文字
  * v-for, v-if, id....
  */
 export default class Tokenizer {
@@ -527,7 +528,7 @@ export default class Tokenizer {
     return {
       column,
       line,
-      offset: index,
+      offset: index, //定義行的位置
     };
   }
   /**
@@ -535,13 +536,14 @@ export default class Tokenizer {
    */
   private stateText(c: number): void {
     if (c === CharCodes.Lt) {
+      // 遇到"<"開始處理標籤
       if (this.index > this.sectionStart) {
         this.cbs.ontext(this.sectionStart, this.index);
       }
       this.state = State.BeforeTagName;
       this.sectionStart = this.index;
     } else if (!this.inVPre && c === this.delimiterOpen[0]) {
-      console.log(" else if");
+      // c === "{{" 處理模板插值
       this.state = State.InterpolationOpen;
       this.delimiterIndex = 0;
       this.stateInterpolationOpen(c);
@@ -551,8 +553,8 @@ export default class Tokenizer {
    * 處理插值語法的起始符號 "{{"，進入插值解析階段
    */
   private stateInterpolationOpen(c: number): void {
+    //c 是否為 "{{"
     if (c === this.delimiterOpen[this.delimiterIndex]) {
-      //c 是否為 "{{"
       if (this.delimiterIndex === this.delimiterOpen.length - 1) {
         const start = this.index + 1 - this.delimiterOpen.length;
         if (start > this.sectionStart) {
@@ -561,6 +563,7 @@ export default class Tokenizer {
         this.state = State.Interpolation;
         this.sectionStart = start;
       } else {
+        // 進到第二個"{"
         this.delimiterIndex++;
       }
     } else {
@@ -583,12 +586,13 @@ export default class Tokenizer {
    */
   private stateInterpolationClose(c: number) {
     if (c === this.delimiterClose[this.delimiterIndex]) {
-      // c === "{{"
+      // c === "}}"
       if (this.delimiterIndex === this.delimiterClose.length - 1) {
         this.cbs.oninterpolation(this.sectionStart, this.index + 1);
         if (this.inRCDATA) {
           this.state = State.InRCDATA;
         } else {
+          // 回歸處理文字
           this.state = State.Text;
         }
         this.sectionStart = this.index + 1;
@@ -635,7 +639,7 @@ export default class Tokenizer {
     this.stateBeforeAttrName(c);
   }
   /**
-   * 處理屬性名稱前的解析狀態。
+   * 判斷是結尾還是要屬性處理
    * 1. 如果當前字符為 `>`，表示標籤結尾，調用 `onopentagend` 並進入文本狀態。
    * 2. 如果當前字符非空白，開始解析屬性名稱。
    */
@@ -649,11 +653,120 @@ export default class Tokenizer {
     }
   }
   /**
-   * 當檢測到屬性名稱開始時的處理邏輯
+   * 更新狀態與index(即將開始解析屬性)
    */
   private handleAttrStart(c: number) {
     this.state = State.InAttrName;
     this.sectionStart = this.index;
+  }
+
+  /**
+   * 進到"="開始解析屬性內容，賦值currentProp
+   * @param c
+   */
+  private stateInAttrName(c: number): void {
+    if (c === CharCodes.Eq || isEndOfTagSection(c)) {
+      this.cbs.onattribname(this.sectionStart, this.index);
+      this.handleAttrNameEnd(c);
+    }
+  }
+
+  private handleAttrNameEnd(c: number): void {
+    this.sectionStart = this.index;
+    this.state = State.AfterAttrName;
+    this.cbs.onattribnameend(this.index);
+    this.stateAfterAttrName(c);
+  }
+
+  private stateAfterAttrName(c: number): void {
+    if (c === CharCodes.Eq) {
+      this.state = State.BeforeAttrValue;
+    }
+  }
+
+  private stateBeforeAttrValue(c: number): void {
+    if (c === CharCodes.DoubleQuote) {
+      this.state = State.InAttrValueDq;
+      this.sectionStart = this.index + 1;
+    } else if (c === CharCodes.SingleQuote) {
+    }
+  }
+
+  private stateInAttrValueDoubleQuotes(c: number): void {
+    this.handleInAttrValue(c, CharCodes.DoubleQuote);
+  }
+
+  /**
+   * 快速定位到指定位置，減少迴圈
+   * @param {Number} c 指定index
+   */
+  private fastForwardTo(c: number): boolean {
+    while (++this.index < this.buffer.length) {
+      const cc = this.buffer.charCodeAt(this.index);
+      if (cc === CharCodes.NewLine) {
+        this.newlines.push(this.index);
+      }
+      if (cc === c) {
+        return true;
+      }
+    }
+
+    /*
+     * We increment the index at the end of the `parse` loop,
+     * so set it to `buffer.length - 1` here.
+     *
+     * TODO: Refactor `parse` to increment index before calling states.
+     */
+    this.index = this.buffer.length - 1;
+
+    return false;
+  }
+
+  private handleInAttrValue(c: number, quote: number) {
+    if (c === quote || this.fastForwardTo(quote)) {
+      this.cbs.onattribdata(this.sectionStart, this.index);
+      this.sectionStart = -1;
+      this.cbs.onattribend(
+        quote === CharCodes.DoubleQuote ? QuoteType.Double : QuoteType.Single,
+        this.index + 1
+      );
+      this.state = State.BeforeAttrName;
+    }
+  }
+
+  private stateBeforeClosingTagName(c: number): void {
+    if (isWhitespace(c)) {
+      // Ignore
+    } else if (c === CharCodes.Gt) {
+      this.state = State.Text;
+      // Ignore
+      this.sectionStart = this.index + 1;
+    } else {
+      this.state = isTagStartChar(c)
+        ? State.InClosingTagName
+        : State.InSpecialComment;
+      this.sectionStart = this.index;
+    }
+  }
+
+  /**
+   * </div> => ">"
+   * @param c
+   */
+  private stateInClosingTagName(c: number): void {
+    if (c === CharCodes.Gt || isWhitespace(c)) {
+      this.cbs.onclosetag(this.sectionStart, this.index);
+      this.sectionStart = -1;
+      this.state = State.AfterClosingTagName;
+      this.stateAfterClosingTagName(c);
+    }
+  }
+
+  private stateAfterClosingTagName(c: number): void {
+    if (c === CharCodes.Gt) {
+      this.state = State.Text;
+      this.sectionStart = this.index + 1;
+    }
   }
 
   /**
@@ -673,38 +786,93 @@ export default class Tokenizer {
       // console.log("font", this.buffer.charAt(this.index));
       switch (this.state) {
         case State.Text: {
-          // 處理普通文本節點，將文本內容儲存或進一步解析
+          //1
           this.stateText(c);
           break;
         }
         case State.InterpolationOpen: {
-          // 處理插值語法的起始符號 "{{"，進入插值解析階段
+          // 2
           this.stateInterpolationOpen(c);
           break;
         }
         case State.Interpolation: {
-          // 處理插值內容，例如變數名稱或表達式
+          // 3
           this.stateInterpolation(c);
           break;
         }
         case State.InterpolationClose: {
-          // 處理插值語法的結束符號 "}}"，結束插值解析階段
+          // 4
           this.stateInterpolationClose(c);
           break;
         }
         case State.BeforeTagName: {
-          // 處理 `<` 符號後的狀態，準備進入標籤名稱解析
+          // 5
           this.stateBeforeTagName(c);
           break;
         }
         case State.InTagName: {
-          // 處理標籤名稱（如 `<div>` 中的 "div"），直到解析完整標籤名稱
+          // 6
           this.stateInTagName(c);
           break;
         }
+        case State.BeforeAttrName: {
+          // 11
+          this.stateBeforeAttrName(c);
+          break;
+        }
+        case State.InAttrName: {
+          // 12
+          this.stateInAttrName(c);
+          break;
+        }
+        case State.BeforeAttrValue: {
+          // 18
+          this.stateBeforeAttrValue(c);
+          break;
+        }
+        case State.InAttrValueDq: {
+          // 19
+          this.stateInAttrValueDoubleQuotes(c);
+          break;
+        }
+        case State.BeforeClosingTagName: {
+          //8
+          this.stateBeforeClosingTagName(c);
+          break;
+        }
+        case State.InClosingTagName: {
+          //9
+          this.stateInClosingTagName(c);
+          break;
+        }
       }
-
       this.index++;
+    }
+    this.cleanup();
+  }
+
+  private sequenceIndex = 0;
+
+  /**
+   * Remove data that has already been consumed from the buffer.
+   */
+  private cleanup() {
+    // If we are inside of text or attributes, emit what we already have.
+    if (this.sectionStart !== this.index) {
+      if (
+        this.state === State.Text ||
+        (this.state === State.InRCDATA && this.sequenceIndex === 0)
+      ) {
+        this.cbs.ontext(this.sectionStart, this.index);
+        this.sectionStart = this.index;
+      } else if (
+        this.state === State.InAttrValueDq ||
+        this.state === State.InAttrValueSq ||
+        this.state === State.InAttrValueNq
+      ) {
+        this.cbs.onattribdata(this.sectionStart, this.index);
+        this.sectionStart = this.index;
+      }
     }
   }
 }
