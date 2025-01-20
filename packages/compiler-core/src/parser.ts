@@ -317,7 +317,79 @@ function endOpenTag(end: number) {
 }
 
 /**
- *
+ * 全部都是空白
+ */
+function isAllWhitespace(str: string) {
+  for (let i = 0; i < str.length; i++) {
+    if (!isWhitespace(str.charCodeAt(i))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function hasNewlineChar(str: string) {
+  for (let i = 0; i < str.length; i++) {
+    const c = str.charCodeAt(i);
+    if (c === CharCodes.NewLine || c === CharCodes.CarriageReturn) {
+      return true;
+    }
+  }
+  return false;
+}
+
+const windowsNewlineRE = /\r\n/g;
+/**
+ * 消除模板中的空白段落
+ * @param nodes
+ * @param tag
+ * @returns
+ */
+function condenseWhitespace(
+  nodes: TemplateChildNode[],
+  tag?: string
+): TemplateChildNode[] {
+  const shouldCondense = currentOptions.whitespace !== "preserve";
+  let removedWhitespace = false;
+
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
+
+    if (node.type === NodeTypes.TEXT) {
+      if (!inPre) {
+        if (isAllWhitespace(node.content)) {
+          const prev = nodes[i - 1] && nodes[i - 1].type;
+          const next = nodes[i + 1] && nodes[i + 1].type;
+
+          if (
+            !prev ||
+            !next ||
+            (shouldCondense &&
+              ((prev === NodeTypes.COMMENT &&
+                (next === NodeTypes.COMMENT || next === NodeTypes.ELEMENT)) ||
+                (prev === NodeTypes.ELEMENT &&
+                  (next === NodeTypes.COMMENT ||
+                    (next === NodeTypes.ELEMENT &&
+                      hasNewlineChar(node.content))))))
+          ) {
+            removedWhitespace = true;
+            nodes[i] = null as any;
+          } else {
+            // Otherwise, the whitespace is condensed into a single space
+            node.content = " ";
+          }
+        }
+      } else {
+        node.content = node.content.replace(windowsNewlineRE, "\n");
+      }
+    }
+  }
+
+  return removedWhitespace ? nodes.filter(Boolean) : nodes;
+}
+
+/**
+ * 解析ast樹
  * @param input template
  * @param options
  * @returns
@@ -342,10 +414,8 @@ export function baseParse(input: string, options?: ParserOptions): RootNode {
       : ParseMode.BASE;
 
   const root = (currentRoot = createRoot([], input));
-  console.log("root", root);
   tokenizer.parse(currentInput);
   root.loc = getLoc(0, input.length);
-  // root.children = condenseWhitespace(root.children)
-
+  root.children = condenseWhitespace(root.children);
   return root;
 }

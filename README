@@ -1,6 +1,6 @@
 tsc -w 並開啟根目錄下的index.html
  
-# 目前看到 condenseWhitespace
+# 目前看到 transform > transformElement
 
 
 #需要了解
@@ -20,4 +20,8 @@ T extends unknown
 instanceof
  Symbol.for('v-ndc')
  Symbol.for("v-cmt");
+
+
+# transform
+https://juejin.cn/post/7153889335232692255
 

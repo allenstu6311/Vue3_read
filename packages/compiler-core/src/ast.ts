@@ -1,41 +1,120 @@
 type BabelNode = any;
 
+/**
+ * 節點表達式
+ */
 export enum NodeTypes {
+  /**
+   * 根節點，代表整個模板的根AST樹
+   */
   ROOT,
+  /**
+   * 元素節點，對應HTML標籤或組件
+   */
   ELEMENT,
+  /**
+   * 純文字節點，代表模板中的靜態文本
+   */
   TEXT,
+  /**
+   * 註解節點，對應模板中的註解 `<!-- comment -->`
+   */
   COMMENT,
+  /**
+   * 簡單表達式節點，對應靜態或動態的單個表達式
+   */
   SIMPLE_EXPRESSION,
+  /**
+   * 插值節點，對應 `{{ 表達式 }}`
+   */
   INTERPOLATION,
+  /**
+   * 屬性節點，對應HTML標籤的屬性，如 `id="app"`
+   */
   ATTRIBUTE,
+  /**
+   * 指令節點，對應Vue中的指令，如 `v-if`、`v-for`
+   */
   DIRECTIVE,
-  // containers
+  /**
+   * 複合表達式節點，對應多個表達式組合的情況
+   */
   COMPOUND_EXPRESSION,
+  /**
+   * if節點，對應 `v-if` 指令
+   */
   IF,
+  /**
+   * if分支節點，對應 `v-if` 的每個條件分支
+   */
   IF_BRANCH,
+  /**
+   * for節點，對應 `v-for` 指令
+   */
   FOR,
+  /**
+   * 文字調用節點，用於生成代碼時的文本處理
+   */
   TEXT_CALL,
-  // codegen
+  /**
+   * 虛擬節點調用，對應 `createVNode` 的調用
+   */
   VNODE_CALL,
+  /**
+   * JavaScript函數調用表達式，對應代碼中的函數調用
+   */
   JS_CALL_EXPRESSION,
+  /**
+   * JavaScript對象表達式，對應代碼中的對象
+   */
   JS_OBJECT_EXPRESSION,
+  /**
+   * JavaScript對象屬性表達式，對應代碼中的對象屬性
+   */
   JS_PROPERTY,
+  /**
+   * JavaScript數組表達式，對應代碼中的數組
+   */
   JS_ARRAY_EXPRESSION,
+  /**
+   * JavaScript函數表達式，對應代碼中的函數
+   */
   JS_FUNCTION_EXPRESSION,
+  /**
+   * JavaScript條件表達式，對應 `a ? b : c` 這類結構
+   */
   JS_CONDITIONAL_EXPRESSION,
+  /**
+   * JavaScript緩存表達式，用於優化代碼執行
+   */
   JS_CACHE_EXPRESSION,
-
-  // ssr codegen
+  /**
+   * JavaScript代碼塊，用於SSR生成的代碼塊
+   */
   JS_BLOCK_STATEMENT,
+  /**
+   * JavaScript模板字面量，用於字符串插值
+   */
   JS_TEMPLATE_LITERAL,
+  /**
+   * JavaScript if語句，用於SSR條件渲染
+   */
   JS_IF_STATEMENT,
+  /**
+   * JavaScript賦值表達式，用於變量賦值
+   */
   JS_ASSIGNMENT_EXPRESSION,
+  /**
+   * JavaScript序列表達式，用於多個表達式組合
+   */
   JS_SEQUENCE_EXPRESSION,
+  /**
+   * JavaScript返回語句，用於函數返回
+   */
   JS_RETURN_STATEMENT,
 }
-
 /**
- * 節點類型
+ * 常數類型
  */
 export enum ConstantTypes {
   /**
@@ -138,6 +217,12 @@ export interface ForParseResult {
   finalized: boolean;
 }
 
+export interface Property extends Node {
+  type: NodeTypes.JS_PROPERTY;
+  key: ExpressionNode;
+  value: JSChildNode;
+}
+
 export interface DirectiveNode extends Node {
   type: NodeTypes.DIRECTIVE;
   /**
@@ -158,7 +243,21 @@ export interface DirectiveNode extends Node {
   forParseResult?: ForParseResult;
 }
 
-export type TemplateChildNode = {};
+export type TemplateChildNode =
+  | ElementNode
+  | TextNode
+  | CommentNode
+  | InterpolationNode;
+
+export interface CommentNode extends Node {
+  type: NodeTypes.COMMENT;
+  content: string;
+}
+
+export interface InterpolationNode extends Node {
+  type: NodeTypes.INTERPOLATION;
+  content: ExpressionNode;
+}
 
 export interface BaseElementNode extends Node {
   type: NodeTypes.ELEMENT;
