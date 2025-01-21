@@ -22,6 +22,14 @@ export const objectToString: typeof Object.prototype.toString =
 export const toTypeString = (value: unknown): string =>
   objectToString.call(value);
 
+const cacheStringFunction = <T extends (str: string) => string>(fn: T): T => {
+  const cache: Record<string, string> = Object.create(null);
+  return ((str: string) => {
+    const hit = cache[str];
+    return hit || (cache[str] = fn(str));
+  }) as T;
+};
+
 /**
  * 回傳物件名稱來判斷目標類型
  * Map && Object && Set...
@@ -39,3 +47,24 @@ export function genCacheKey(source: string, options: any): string {
     )
   );
 }
+
+/**
+ * 快取字串處理
+ * @private
+ */
+export const capitalize: <T extends string>(str: T) => Capitalize<T> =
+  cacheStringFunction(<T extends string>(str: T) => {
+    return (str.charAt(0).toUpperCase() + str.slice(1)) as Capitalize<T>;
+  });
+
+const camelizeRE = /-(\w)/g;
+/**
+ * @private
+ */
+export const camelize: (str: string) => string = cacheStringFunction(
+  (str: string): string => {
+    return str.replace(camelizeRE, (_, c) => (c ? c.toUpperCase() : ""));
+  }
+);
+
+export const isArray: typeof Array.isArray = Array.isArray;

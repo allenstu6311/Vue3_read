@@ -157,6 +157,8 @@ export interface Node {
   loc: SourceLocation;
 }
 
+export type ParentNode = RootNode | ElementNode;
+
 export interface RootNode extends Node {
   type: NodeTypes.ROOT;
   source: string;
@@ -353,4 +355,17 @@ export function createSimpleExpression(
     isStatic,
     constType: isStatic ? ConstantTypes.CAN_STRINGIFY : constType,
   };
+}
+
+export interface CacheExpression extends Node {
+  type: NodeTypes.JS_CACHE_EXPRESSION;
+  index: number;
+  value: JSChildNode;
+  needPauseTracking: boolean;
+  needArraySpread: boolean;
+}
+
+export interface ArrayExpression extends Node {
+  type: NodeTypes.JS_ARRAY_EXPRESSION;
+  elements: Array<string | Node>;
 }
