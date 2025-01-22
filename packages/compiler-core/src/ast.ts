@@ -1,3 +1,16 @@
+import { PatchFlags } from "../../shared/src/patchFlags.js";
+import {
+  CREATE_BLOCK,
+  CREATE_ELEMENT_BLOCK,
+  CREATE_ELEMENT_VNODE,
+  CREATE_VNODE,
+  OPEN_BLOCK,
+  RENDER_LIST,
+  WITH_DIRECTIVES,
+} from "./runtimeHelpers.js";
+import { TransformContext } from "./transform.js";
+import { PropsExpression } from "./transforms/transformElement.js";
+
 type BabelNode = any;
 
 /**
@@ -171,7 +184,7 @@ export interface RootNode extends Node {
   cached: (any | null)[];
   temps: number;
   ssrHelpers?: symbol[];
-  codegenNode?: any | any | any;
+  codegenNode?: any;
   transformed?: boolean;
 
   // v2 compat only
@@ -205,11 +218,37 @@ export interface AttributeNode extends Node {
 
 export type Namespace = number;
 
-export type ElementNode = BaseElementNode | PlainElementNode;
+export type ElementNode = PlainElementNode | ComponentNode;
 
 export type ExpressionNode = SimpleExpressionNode | CompoundExpressionNode;
 
-export interface CompoundExpressionNode extends Node {}
+export interface ComponentNode extends BaseElementNode {
+  tagType: ElementTypes.COMPONENT;
+  codegenNode:
+    | VNodeCall
+    | CacheExpression // when cached by v-once
+    // | MemoExpression // when cached by v-memo
+    | undefined;
+  ssrCodegenNode?: CallExpression;
+}
+
+export interface CompoundExpressionNode extends Node {
+  type: NodeTypes.COMPOUND_EXPRESSION;
+  /**
+   * - `null` means the expression is a simple identifier that doesn't need
+   *    parsing
+   * - `false` means there was a parsing error
+   */
+  ast?: BabelNode | null | false;
+  children: (
+    | SimpleExpressionNode
+    | CompoundExpressionNode
+    | InterpolationNode
+    | TextNode
+    | string
+    | symbol
+  )[];
+}
 
 export interface ForParseResult {
   source: ExpressionNode;
@@ -249,7 +288,15 @@ export type TemplateChildNode =
   | ElementNode
   | TextNode
   | CommentNode
-  | InterpolationNode;
+  | InterpolationNode
+  | TextCallNode
+  | CompoundExpressionNode;
+
+export interface TextCallNode extends Node {
+  type: NodeTypes.TEXT_CALL;
+  content: TextNode | InterpolationNode | CompoundExpressionNode;
+  codegenNode: CallExpression | SimpleExpressionNode; // when hoisted
+}
 
 export interface CommentNode extends Node {
   type: NodeTypes.COMMENT;
@@ -270,11 +317,12 @@ export interface BaseElementNode extends Node {
   children: TemplateChildNode[];
   isSelfClosing?: boolean;
   innerLoc?: SourceLocation; // only for SFC root level elements
+  // codegenNode: any;
 }
 
 export interface PlainElementNode extends BaseElementNode {
   tagType: ElementTypes.ELEMENT;
-  codegenNode: undefined;
+  codegenNode: undefined | VNodeCall;
   ssrCodegenNode?: TemplateLiteral;
 }
 
@@ -368,4 +416,115 @@ export interface CacheExpression extends Node {
 export interface ArrayExpression extends Node {
   type: NodeTypes.JS_ARRAY_EXPRESSION;
   elements: Array<string | Node>;
+}
+
+export interface CallExpression extends Node {}
+
+export type TemplateTextChildNode =
+  | TextNode
+  | InterpolationNode
+  | CompoundExpressionNode;
+
+export type SlotsExpression = {};
+
+export interface FunctionExpression extends Node {}
+
+export interface ForIteratorExpression extends FunctionExpression {
+  returns?: BlockCodegenNode;
+}
+
+export type BlockCodegenNode = VNodeCall;
+export interface ForRenderListExpression extends CallExpression {
+  callee: typeof RENDER_LIST;
+  arguments: [ExpressionNode, ForIteratorExpression];
+}
+
+export interface DirectiveArguments extends ArrayExpression {
+  elements: DirectiveArgumentNode[];
+}
+
+export interface ObjectExpression extends Node {
+  type: NodeTypes.JS_OBJECT_EXPRESSION;
+  properties: Array<Property>;
+}
+
+export interface DirectiveArgumentNode extends ArrayExpression {
+  elements: // dir, exp, arg, modifiers
+  | [string]
+    | [string, ExpressionNode]
+    | [string, ExpressionNode, ExpressionNode]
+    | [string, ExpressionNode, ExpressionNode, ObjectExpression];
+}
+
+export interface VNodeCall extends Node {
+  type: NodeTypes.VNODE_CALL;
+  tag: string | symbol | CallExpression;
+  props: PropsExpression | undefined;
+  children:
+    | TemplateChildNode[] // multiple children
+    | TemplateTextChildNode // single text child
+    | SlotsExpression // component slots
+    | ForRenderListExpression // v-for fragment call
+    | SimpleExpressionNode // hoisted
+    | CacheExpression // cached
+    | undefined;
+  patchFlag: PatchFlags | undefined;
+  dynamicProps: string | SimpleExpressionNode | undefined;
+  directives: DirectiveArguments | undefined;
+  isBlock: boolean;
+  disableTracking: boolean;
+  isComponent: boolean;
+}
+
+export function createVNodeCall(
+  context: TransformContext | null,
+  tag: VNodeCall["tag"],
+  props?: VNodeCall["props"],
+  children?: VNodeCall["children"],
+  patchFlag?: VNodeCall["patchFlag"],
+  dynamicProps?: VNodeCall["dynamicProps"],
+  directives?: VNodeCall["directives"],
+  isBlock: VNodeCall["isBlock"] = false,
+  disableTracking: VNodeCall["disableTracking"] = false,
+  isComponent: VNodeCall["isComponent"] = false,
+  loc: SourceLocation = locStub
+): VNodeCall {
+  if (context) {
+    if (isBlock) {
+      context.helper(OPEN_BLOCK);
+      context.helper(getVNodeBlockHelper(context.inSSR, isComponent));
+    } else {
+      context.helper(getVNodeHelper(context.inSSR, isComponent));
+    }
+    if (directives) {
+      context.helper(WITH_DIRECTIVES);
+    }
+  }
+
+  return {
+    type: NodeTypes.VNODE_CALL,
+    tag,
+    props,
+    children,
+    patchFlag,
+    dynamicProps,
+    directives,
+    isBlock,
+    disableTracking,
+    isComponent,
+    loc,
+  };
+}
+export function getVNodeBlockHelper(
+  ssr: boolean,
+  isComponent: boolean
+): typeof CREATE_BLOCK | typeof CREATE_ELEMENT_BLOCK {
+  return ssr || isComponent ? CREATE_BLOCK : CREATE_ELEMENT_BLOCK;
+}
+
+export function getVNodeHelper(
+  ssr: boolean,
+  isComponent: boolean
+): typeof CREATE_VNODE | typeof CREATE_ELEMENT_VNODE {
+  return ssr || isComponent ? CREATE_VNODE : CREATE_ELEMENT_VNODE;
 }

@@ -1,7 +1,6 @@
-tsc -w 並開啟根目錄下的index.html
- 
-# 目前看到 transform > createRootCodegen
+tsc -w 並開啟根目錄下的 index.html
 
+# 目前看到 transform > createRootCodegen
 
 #需要了解
 
@@ -18,16 +17,28 @@ T extends unknown
 
 (js)
 instanceof
- Symbol.for('v-ndc')
- Symbol.for("v-cmt");
+Symbol.for('v-ndc')
+Symbol.for("v-cmt")
 
-export type CompilerCompatConfig = Partial<
-  Record<CompilerDeprecationTypes, boolean | 'suppress-warning'>
-> & {
-  MODE?: 2 | 3
-}
+export interface CompoundExpressionNode extends Node {
+type: NodeTypes.COMPOUND_EXPRESSION;
+/\*\*
 
+- - `null` means the expression is a simple identifier that doesn't need
+- parsing
+- - `false` means there was a parsing error
+    \*/
+    ast?: BabelNode | null | false;
+    children: (
+    | SimpleExpressionNode
+    | CompoundExpressionNode
+    | InterpolationNode
+    | TextNode
+    | string
+    | symbol
+    )[];
+    }
 
 # transform
-https://juejin.cn/post/7153889335232692255
 
+https://juejin.cn/post/7153889335232692255

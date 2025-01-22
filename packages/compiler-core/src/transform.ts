@@ -187,6 +187,8 @@ export function createTransformContext(
 export function transform(root: RootNode, options: TransformOptions): void {
   const context = createTransformContext(root, options);
   traverseNode(root, context);
+  console.log("node", root);
+
   createRootCodegen(root, context);
 }
 
@@ -195,7 +197,7 @@ function createRootCodegen(root: RootNode, context: TransformContext) {
   const { children } = root;
   if (children.length === 1) {
     const child = children[0];
-    console.log("root", root);
+    // console.log("root", root);
   }
 }
 
@@ -268,6 +270,7 @@ export function traverseNode(
   context.currentNode = node;
   let i = exitFns.length;
   while (i--) {
+    // 執行transform方法
     exitFns[i]();
   }
 }
