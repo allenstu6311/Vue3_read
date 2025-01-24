@@ -43,6 +43,7 @@ export function baseCompile(
       ),
     })
   );
+  console.log("ast", ast);
 
   return null as any;
 }

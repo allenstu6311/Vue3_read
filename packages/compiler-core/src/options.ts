@@ -1,7 +1,9 @@
 import {
   ElementNode,
+  JSChildNode,
   Namespace,
   Namespaces,
+  RootNode,
   TemplateChildNode,
 } from "./ast.js";
 import { CompilerCompatOptions } from "./compact/compatConfig.js";
@@ -12,7 +14,12 @@ import {
 } from "./transform.js";
 
 export type CompilerOptions = TransformOptions;
-export type CodegenResult = {};
+export type CodegenResult = {
+  code: string;
+  preamble: string;
+  ast: RootNode;
+  map?: RawSourceMap;
+};
 
 export interface ErrorHandlingOptions {
   onWarn?: (warning: any) => void;
@@ -300,3 +307,105 @@ export type BindingMetadata = {
   __isScriptSetup?: boolean;
   __propsAliases?: Record<string, string>;
 };
+
+export interface CodegenOptions extends SharedTransformCodegenOptions {
+  /**
+   * - `module` mode will generate ES module import statements for helpers
+   * and export the render function as the default export.
+   * - `function` mode will generate a single `const { helpers... } = Vue`
+   * statement and return the render function. It expects `Vue` to be globally
+   * available (or passed by wrapping the code with an IIFE). It is meant to be
+   * used with `new Function(code)()` to generate a render function at runtime.
+   * @default 'function'
+   */
+  mode?: "module" | "function";
+  /**
+   * Generate source map?
+   * @default false
+   */
+  sourceMap?: boolean;
+  /**
+   * SFC scoped styles ID
+   */
+  scopeId?: string | null;
+  /**
+   * Option to optimize helper import bindings via variable assignment
+   * (only used for webpack code-split)
+   * @default false
+   */
+  optimizeImports?: boolean;
+  /**
+   * Customize where to import runtime helpers from.
+   * @default 'vue'
+   */
+  runtimeModuleName?: string;
+  /**
+   * Customize where to import ssr runtime helpers from/**
+   * @default 'vue/server-renderer'
+   */
+  ssrRuntimeModuleName?: string;
+  /**
+   * Customize the global variable name of `Vue` to get helpers from
+   * in function mode
+   * @default 'Vue'
+   */
+  runtimeGlobalName?: string;
+}
+
+/**
+ * The `SourceMapGenerator` type from `source-map-js` is a bit incomplete as it
+ * misses `toJSON()`. We also need to add types for internal properties which we
+ * need to access for better performance.
+ *
+ * Since TS 5.3, dts generation starts to strangely include broken triple slash
+ * references for source-map-js, so we are inlining all source map related types
+ * here to to workaround that.
+ */
+export interface CodegenSourceMapGenerator {
+  setSourceContent(sourceFile: string, sourceContent: string): void;
+  // SourceMapGenerator has this method but the types do not include it
+  toJSON(): RawSourceMap;
+  _sources: Set<string>;
+  _names: Set<string>;
+  _mappings: {
+    add(mapping: MappingItem): void;
+  };
+}
+
+interface MappingItem {
+  source: string;
+  generatedLine: number;
+  generatedColumn: number;
+  originalLine: number;
+  originalColumn: number;
+  name: string | null;
+}
+
+export interface RawSourceMap {
+  file?: string;
+  sourceRoot?: string;
+  version: string;
+  sources: string[];
+  names: string[];
+  sourcesContent?: string[];
+  mappings: string;
+}
+
+export interface CodegenContext
+  extends Omit<Required<CodegenOptions>, "bindingMetadata" | "inline"> {
+  source: string;
+  code: string;
+  line: number;
+  column: number;
+  offset: number;
+  indentLevel: number;
+  pure: boolean;
+  map?: CodegenSourceMapGenerator;
+  helper(key: symbol): string;
+  push(code: string, newlineIndex?: number, node?: CodegenNode): void;
+  indent(): void;
+  deindent(withoutNewLine?: boolean): void;
+  newline(): void;
+}
+
+type CodegenNode = TemplateChildNode | JSChildNode;

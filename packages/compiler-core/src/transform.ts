@@ -13,6 +13,8 @@ import {
   DirectiveNode,
   ElementNode,
   ExpressionNode,
+  getVNodeBlockHelper,
+  getVNodeHelper,
   JSChildNode,
   NodeTypes,
   ParentNode,
@@ -21,11 +23,13 @@ import {
   SimpleExpressionNode,
   TemplateChildNode,
   TemplateLiteral,
+  VNodeCall,
 } from "./ast.js";
 import { CompilerCompatOptions } from "./compact/compatConfig.js";
 import { defaultOnError, defaultOnWarn } from "./errors.js";
 import { TransformOptions } from "./options.js";
-import { TO_DISPLAY_STRING } from "./runtimeHelpers.js";
+import { OPEN_BLOCK, TO_DISPLAY_STRING } from "./runtimeHelpers.js";
+import { isSingleElementRoot } from "./transforms/cacheStatic.js";
 
 export type NodeTransform = (
   node: RootNode | TemplateChildNode,
@@ -174,10 +178,29 @@ export function createTransformContext(
     inVOnce: false,
 
     // methods
+    /**
+     * 記錄模板編譯過程中所需的工具函數（helpers），並增加該 helper 的引用次數。
+     * 果該 helper 尚未被引用，則初始化它的引用次數為 1。
+     */
     helper(name: string) {
       const count = context.helpers.get(name) || 0;
       context.helpers.set(name, count + 1);
       return name; //Symbol()
+    },
+    /**
+     * 減少指定 helper 的引用次數。
+     * 如果引用次數降為 0，則從上下文中移除該 helper。
+     */
+    removeHelper(name: string) {
+      const count = context.helpers.get(name);
+      if (count) {
+        const currentCount = count - 1;
+        if (!currentCount) {
+          context.helpers.delete(name);
+        } else {
+          context.helpers.set(name, currentCount);
+        }
+      }
     },
   };
 
@@ -187,9 +210,17 @@ export function createTransformContext(
 export function transform(root: RootNode, options: TransformOptions): void {
   const context = createTransformContext(root, options);
   traverseNode(root, context);
-  console.log("node", root);
-
   createRootCodegen(root, context);
+
+  // finalize meta information
+  root.helpers = new Set([...context.helpers.keys()]);
+  root.components = [...context.components];
+  root.directives = [...context.directives];
+  root.imports = context.imports;
+  root.hoists = context.hoists;
+  root.temps = context.temps;
+  root.cached = context.cached;
+  root.transformed = true;
 }
 
 function createRootCodegen(root: RootNode, context: TransformContext) {
@@ -197,7 +228,16 @@ function createRootCodegen(root: RootNode, context: TransformContext) {
   const { children } = root;
   if (children.length === 1) {
     const child = children[0];
-    // console.log("root", root);
+
+    if (isSingleElementRoot(root, child) && child.codegenNode) {
+      // console.log("root", root);
+      const codegenNode = child.codegenNode;
+      if (codegenNode.type === NodeTypes.VNODE_CALL) {
+        convertToBlock(codegenNode, context);
+      }
+
+      root.codegenNode = codegenNode;
+    }
   }
 }
 
@@ -272,5 +312,17 @@ export function traverseNode(
   while (i--) {
     // 執行transform方法
     exitFns[i]();
+  }
+}
+
+export function convertToBlock(
+  node: VNodeCall,
+  { helper, removeHelper, inSSR }: TransformContext
+): void {
+  if (!node.isBlock) {
+    node.isBlock = true;
+    removeHelper(getVNodeHelper(inSSR, node.isComponent));
+    helper(OPEN_BLOCK);
+    helper(getVNodeBlockHelper(inSSR, node.isComponent));
   }
 }

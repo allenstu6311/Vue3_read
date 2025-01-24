@@ -218,7 +218,7 @@ export interface AttributeNode extends Node {
 
 export type Namespace = number;
 
-export type ElementNode = PlainElementNode | ComponentNode;
+export type ElementNode = PlainElementNode | ComponentNode | TemplateNode;
 
 export type ExpressionNode = SimpleExpressionNode | CompoundExpressionNode;
 
@@ -290,7 +290,8 @@ export type TemplateChildNode =
   | CommentNode
   | InterpolationNode
   | TextCallNode
-  | CompoundExpressionNode;
+  | CompoundExpressionNode
+  | TemplateNode;
 
 export interface TextCallNode extends Node {
   type: NodeTypes.TEXT_CALL;
@@ -418,6 +419,12 @@ export interface ArrayExpression extends Node {
   elements: Array<string | Node>;
 }
 
+export interface TemplateNode extends BaseElementNode {
+  tagType: ElementTypes.TEMPLATE;
+  // TemplateNode is a container type that always gets compiled away
+  codegenNode: undefined;
+}
+
 export interface CallExpression extends Node {}
 
 export type TemplateTextChildNode =
@@ -515,6 +522,7 @@ export function createVNodeCall(
     loc,
   };
 }
+
 export function getVNodeBlockHelper(
   ssr: boolean,
   isComponent: boolean
@@ -527,4 +535,16 @@ export function getVNodeHelper(
   isComponent: boolean
 ): typeof CREATE_VNODE | typeof CREATE_ELEMENT_VNODE {
   return ssr || isComponent ? CREATE_VNODE : CREATE_ELEMENT_VNODE;
+}
+
+export function convertToBlock(
+  node: VNodeCall,
+  { helper, removeHelper, inSSR }: TransformContext
+): void {
+  if (!node.isBlock) {
+    node.isBlock = true;
+    removeHelper(getVNodeHelper(inSSR, node.isComponent));
+    helper(OPEN_BLOCK);
+    helper(getVNodeBlockHelper(inSSR, node.isComponent));
+  }
 }
