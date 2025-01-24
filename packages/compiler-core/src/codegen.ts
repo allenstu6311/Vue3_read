@@ -40,7 +40,6 @@ function createCodegenContext(
     pure: false,
     map: undefined,
   };
-
   return context;
 }
 

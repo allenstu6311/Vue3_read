@@ -1,5 +1,6 @@
 import { isString, extend } from "./../../shared/src/general.js";
 import { RootNode } from "./ast.js";
+import { generate } from "./codegen.js";
 import { CodegenResult, CompilerOptions } from "./options.js";
 import { baseParse } from "./parser.js";
 import { DirectiveTransform, NodeTransform, transform } from "./transform.js";
@@ -43,7 +44,6 @@ export function baseCompile(
       ),
     })
   );
-  console.log("ast", ast);
 
-  return null as any;
+  return generate(ast, resolvedOptions);
 }
