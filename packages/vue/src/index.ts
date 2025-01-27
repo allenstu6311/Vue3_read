@@ -2,7 +2,12 @@ import { CompilerOptions } from "./../../compiler-core/src/options.js";
 import { compile } from "../../compiler-dom/index.js";
 import { registerRuntimeCompiler } from "../../runtime-core/src/component.js";
 import { RenderFunction } from "../../runtime-core/src/componentOptions.js";
-import { genCacheKey, isString, NOOP } from "../../shared/src/general.js";
+import {
+  extend,
+  genCacheKey,
+  isString,
+  NOOP,
+} from "../../shared/src/general.js";
 
 const compileCache: Record<string, RenderFunction> = Object.create(null);
 
@@ -19,8 +24,15 @@ function compileToFunction(
   }
   const key = genCacheKey(template, options);
 
+  const opts = extend(
+    {
+      hoistStatic: true,
+    } as CompilerOptions,
+    options
+  );
+
   // const { code } = compile(template);
-  compile(template);
+  compile(template, opts);
   return null as any;
 }
 registerRuntimeCompiler(compileToFunction);

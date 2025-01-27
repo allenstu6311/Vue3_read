@@ -127,7 +127,7 @@ export enum NodeTypes {
   JS_RETURN_STATEMENT,
 }
 /**
- * 常數類型
+ * 靜態節點類型
  */
 export enum ConstantTypes {
   /**

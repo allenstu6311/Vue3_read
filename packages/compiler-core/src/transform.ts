@@ -29,7 +29,7 @@ import { CompilerCompatOptions } from "./compact/compatConfig.js";
 import { defaultOnError, defaultOnWarn } from "./errors.js";
 import { TransformOptions } from "./options.js";
 import { OPEN_BLOCK, TO_DISPLAY_STRING } from "./runtimeHelpers.js";
-import { isSingleElementRoot } from "./transforms/cacheStatic.js";
+import { cacheStatic, isSingleElementRoot } from "./transforms/cacheStatic.js";
 
 export type NodeTransform = (
   node: RootNode | TemplateChildNode,
@@ -209,7 +209,12 @@ export function createTransformContext(
 
 export function transform(root: RootNode, options: TransformOptions): void {
   const context = createTransformContext(root, options);
+
   traverseNode(root, context);
+
+  if (options.hoistStatic) {
+    cacheStatic(root, context);
+  }
   createRootCodegen(root, context);
 
   // finalize meta information
