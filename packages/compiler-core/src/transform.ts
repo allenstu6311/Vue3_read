@@ -202,6 +202,7 @@ export function createTransformContext(
         }
       }
     },
+    hoist(exp: any) {},
   };
 
   return context;

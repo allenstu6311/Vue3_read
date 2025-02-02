@@ -1,3 +1,4 @@
+import { isString } from "../../shared/src/general.js";
 import { PatchFlags } from "../../shared/src/patchFlags.js";
 import {
   CREATE_BLOCK,
@@ -6,6 +7,7 @@ import {
   CREATE_VNODE,
   OPEN_BLOCK,
   RENDER_LIST,
+  RENDER_SLOT,
   WITH_DIRECTIVES,
 } from "./runtimeHelpers.js";
 import { TransformContext } from "./transform.js";
@@ -148,7 +150,12 @@ export enum ConstantTypes {
   CAN_STRINGIFY,
 }
 
-export type JSChildNode = {};
+export type JSChildNode =
+  | VNodeCall
+  | SimpleExpressionNode
+  | ArrayExpression
+  | ExpressionNode
+  | CallExpression;
 
 /**
  * 代碼在文檔中的具體位置
@@ -168,6 +175,19 @@ export interface SourceLocation {
 export interface Node {
   type: NodeTypes;
   loc: SourceLocation;
+}
+
+export interface CallExpression extends Node {
+  type: NodeTypes.JS_CALL_EXPRESSION;
+  callee: string | symbol;
+  arguments: (
+    | string
+    | symbol
+    | JSChildNode
+    // | SSRCodegenNode
+    | TemplateChildNode
+    | TemplateChildNode[]
+  )[];
 }
 
 export type ParentNode = RootNode | ElementNode;
@@ -323,7 +343,7 @@ export interface BaseElementNode extends Node {
 
 export interface PlainElementNode extends BaseElementNode {
   tagType: ElementTypes.ELEMENT;
-  codegenNode: undefined | VNodeCall;
+  codegenNode: undefined | VNodeCall | SimpleExpressionNode;
   ssrCodegenNode?: TemplateLiteral;
 }
 
@@ -391,6 +411,15 @@ export interface SimpleExpressionNode extends Node {
   isHandlerKey?: boolean;
 }
 
+/**
+ * 創建 AST 的簡單表達式節點（SimpleExpressionNode）
+ *
+ * @param content - 表達式的內容，例如 `"msg"` 或 `"1 + 1"`
+ * @param isStatic - 是否為靜態表達式，預設為 `false`
+ * @param loc - 表達式在原始模板中的位置信息，預設為 `locStub`
+ * @param constType - 常量類型，決定該表達式是否可以進一步優化，預設為 `NOT_CONSTANT`
+ * @returns 返回一個 `SimpleExpressionNode`，用於 AST 轉換過程
+ */
 export function createSimpleExpression(
   content: SimpleExpressionNode["content"],
   isStatic: SimpleExpressionNode["isStatic"] = false,
@@ -425,8 +454,6 @@ export interface TemplateNode extends BaseElementNode {
   codegenNode: undefined;
 }
 
-export interface CallExpression extends Node {}
-
 export type TemplateTextChildNode =
   | TextNode
   | InterpolationNode
@@ -443,7 +470,7 @@ export interface ForIteratorExpression extends FunctionExpression {
 export type BlockCodegenNode = VNodeCall;
 export interface ForRenderListExpression extends CallExpression {
   callee: typeof RENDER_LIST;
-  arguments: [ExpressionNode, ForIteratorExpression];
+  arguments: any;
 }
 
 export interface DirectiveArguments extends ArrayExpression {
@@ -481,6 +508,60 @@ export interface VNodeCall extends Node {
   isBlock: boolean;
   disableTracking: boolean;
   isComponent: boolean;
+}
+
+// renderSlot(...)
+export interface RenderSlotCall extends CallExpression {
+  callee: typeof RENDER_SLOT;
+  // arguments: // $slots, name, props, fallback
+
+  // | [string, string | ExpressionNode]
+  //   | [string, string | ExpressionNode, PropsExpression]
+  //   | [
+  //       string,
+  //       string | ExpressionNode,
+  //       PropsExpression | "{}",
+  //       TemplateChildNode[]
+  //     ];
+  arguments: any;
+}
+
+type InferCodegenNodeType<T> = T extends typeof RENDER_SLOT
+  ? RenderSlotCall
+  : CallExpression;
+
+/**
+ * 創建一個 JavaScript 物件表達式節點（ObjectExpression），
+ * 用於 AST 轉換過程中表示物件字面量。
+ *
+ * @param properties - 物件屬性陣列，每個屬性都是一個 `Property` 節點
+ * @param loc - 物件在模板中的位置信息，預設為 `locStub`
+ * @returns 返回 `ObjectExpression`，表示 JavaScript 的 `{ key: value }`
+ */
+export function createObjectExpression(
+  properties: ObjectExpression["properties"],
+  loc: SourceLocation = locStub
+): ObjectExpression {
+  return {
+    type: NodeTypes.JS_OBJECT_EXPRESSION,
+    loc,
+    properties,
+  };
+}
+
+/**
+ * 返回物件(key:value)
+ */
+export function createObjectProperty(
+  key: Property["key"] | string,
+  value: Property["value"]
+): Property {
+  return {
+    type: NodeTypes.JS_PROPERTY,
+    loc: locStub,
+    key: isString(key) ? createSimpleExpression(key, true) : key,
+    value,
+  };
 }
 
 export function createVNodeCall(
@@ -547,4 +628,17 @@ export function convertToBlock(
     helper(OPEN_BLOCK);
     helper(getVNodeBlockHelper(inSSR, node.isComponent));
   }
+}
+
+export function createCallExpression<T extends CallExpression["callee"]>(
+  callee: T,
+  args: CallExpression["arguments"] = [],
+  loc: SourceLocation = locStub
+): InferCodegenNodeType<T> {
+  return {
+    type: NodeTypes.JS_CALL_EXPRESSION,
+    loc,
+    callee,
+    arguments: args,
+  } as InferCodegenNodeType<T>;
 }

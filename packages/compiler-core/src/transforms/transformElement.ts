@@ -1,15 +1,25 @@
 import { PatchFlags } from "../../../shared/src/patchFlags.js";
 import {
+  CallExpression,
   ConstantTypes,
+  createCallExpression,
+  createObjectExpression,
+  createObjectProperty,
+  createSimpleExpression,
   createVNodeCall,
+  DirectiveNode,
+  ElementNode,
   ElementTypes,
   ExpressionNode,
   NodeTypes,
+  ObjectExpression,
+  Property,
   TemplateTextChildNode,
   VNodeCall,
 } from "../ast.js";
-import { TELEPORT } from "../runtimeHelpers.js";
-import { NodeTransform } from "../transform.js";
+import { NORMALIZE_CLASS, TELEPORT } from "../runtimeHelpers.js";
+import { NodeTransform, TransformContext } from "../transform.js";
+import { isStaticExp } from "../utils.js";
 import { getConstantType } from "./cacheStatic.js";
 
 export const transformElement: NodeTransform = (node, context) => {
@@ -40,6 +50,19 @@ export const transformElement: NodeTransform = (node, context) => {
     let vnodeDirectives: VNodeCall["directives"];
 
     let shouldUseBlock = false;
+
+    // props
+    if (props.length > 0) {
+      const propsBuildResult = buildProps(
+        node,
+        context,
+        undefined,
+        isComponent,
+        isDynamicComponent
+      );
+      vnodeProps = propsBuildResult.props;
+      patchFlag = propsBuildResult.patchFlag;
+    }
 
     // children
     if (node.children.length > 0) {
@@ -81,4 +104,152 @@ export const transformElement: NodeTransform = (node, context) => {
   };
 };
 
-export type PropsExpression = ExpressionNode;
+export type PropsExpression =
+  | ExpressionNode
+  | ObjectExpression
+  | CallExpression;
+
+export function buildProps(
+  node: ElementNode,
+  context: TransformContext,
+  props: ElementNode["props"] | undefined = node.props,
+  isComponent: boolean,
+  isDynamicComponent: boolean,
+  ssr = false
+): {
+  props: PropsExpression | undefined;
+  directives: DirectiveNode[];
+  patchFlag: number;
+  dynamicPropNames: string[];
+  shouldUseBlock: boolean;
+} {
+  const { tag, loc: elementLoc, children } = node;
+  let properties: ObjectExpression["properties"] = [];
+  const mergeArgs: PropsExpression[] = [];
+  const runtimeDirectives: DirectiveNode[] = [];
+  const hasChildren = children.length > 0;
+  let shouldUseBlock = false;
+
+  // patchFlag analysis
+  let patchFlag = 0;
+  let hasRef = false;
+  let hasClassBinding = false;
+  let hasStyleBinding = false;
+  let hasHydrationEventBinding = false;
+  let hasDynamicKeys = false;
+  let hasVnodeHook = false;
+  const dynamicPropNames: string[] = [];
+
+  for (let i = 0; i < props.length; i++) {
+    // static attribute
+    const prop = props[i];
+
+    if (prop.type === NodeTypes.ATTRIBUTE) {
+      const { loc, name, nameLoc, value } = prop;
+      let isStatic = true;
+      // 將props整理成key value並蒐集{key:value}
+      properties.push(
+        createObjectProperty(
+          // key
+          createSimpleExpression(name, true, nameLoc),
+          // value
+          createSimpleExpression(
+            value ? value.content : "",
+            isStatic,
+            value ? value.loc : loc
+          )
+        )
+      );
+    }
+  }
+
+  let propsExpression: PropsExpression | undefined = undefined;
+
+  if (mergeArgs.length) {
+  } else if (properties.length) {
+    propsExpression = createObjectExpression(
+      dedupeProperties(properties),
+      elementLoc
+    );
+  }
+  // console.log("propsExpression", propsExpression);
+
+  // if (hasDynamicKeys) {
+  // } else {
+  // }
+
+  if (!context.inSSR && propsExpression) {
+    switch (propsExpression.type) {
+      case NodeTypes.JS_OBJECT_EXPRESSION:
+        // no-v-bind
+        let classKeyIndex = -1;
+        let styleKeyIndex = -1;
+        let hasDynamicKey = false;
+
+        for (let i = 0; i < propsExpression.properties.length; i++) {
+          const key = propsExpression.properties[i].key;
+          if (isStaticExp(key)) {
+            if (key.content === "class") {
+              classKeyIndex = i;
+            }
+          }
+        }
+        const classProp = propsExpression.properties[classKeyIndex];
+        const styleProp = propsExpression.properties[styleKeyIndex];
+        if (!hasDynamicKey) {
+          if (classProp && !isStaticExp(classProp.value)) {
+            classProp.value = createCallExpression(
+              context.helper(NORMALIZE_CLASS),
+              [classProp.value]
+            );
+          }
+        }
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  return {
+    props: propsExpression,
+    directives: runtimeDirectives,
+    patchFlag,
+    dynamicPropNames,
+    shouldUseBlock,
+  };
+
+  // Dedupe props in an object literal.
+  // Literal duplicated attributes would have been warned during the parse phase,
+  // however, it's possible to encounter duplicated `onXXX` handlers with different
+  // modifiers. We also need to merge static and dynamic class / style attributes.
+  // - onXXX handlers / style: merge into array
+  // - class: merge into single expression with concatenation
+  function dedupeProperties(properties: Property[]): Property[] {
+    const knownProps: Map<string, Property> = new Map();
+    const deduped: Property[] = [];
+    for (let i = 0; i < properties.length; i++) {
+      const prop = properties[i];
+      // dynamic keys are always allowed
+      if (
+        prop.key.type === NodeTypes.COMPOUND_EXPRESSION ||
+        !prop.key.isStatic
+      ) {
+        deduped.push(prop);
+        continue;
+      }
+      const name = prop.key.content;
+      const existing = knownProps.get(name);
+      if (existing) {
+        // if (name === 'style' || name === 'class' || isOn(name)) {
+        //   mergeAsArray(existing, prop)
+        // }
+        // unexpected duplicate, should have emitted error during parse
+      } else {
+        knownProps.set(name, prop);
+        deduped.push(prop);
+      }
+    }
+    return deduped;
+  }
+}

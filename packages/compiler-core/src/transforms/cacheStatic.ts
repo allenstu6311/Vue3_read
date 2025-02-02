@@ -59,7 +59,7 @@ function walk(
         const codegenNode = child.codegenNode!;
         if (codegenNode.type === NodeTypes.VNODE_CALL) {
           const flag = codegenNode.patchFlag;
-          console.log("flag", flag);
+          // console.log("flag", flag);
           if (
             (flag === undefined ||
               flag === PatchFlags.NEED_PATCH ||
@@ -67,10 +67,10 @@ function walk(
             getGeneratedPropsConstantType(child, context) >=
               ConstantTypes.CAN_CACHE
           ) {
-            // const props = getNodeProps(child)
-            // if (props) {
-            //   codegenNode.props = context.hoist(props)
-            // }
+            const props = getNodeProps(child);
+            if (props) {
+              codegenNode.props = context.hoist(props);
+            }
           }
         }
       }
@@ -103,7 +103,20 @@ function getGeneratedPropsConstantType(
   context: TransformContext
 ): ConstantTypes {
   let returnType = ConstantTypes.CAN_STRINGIFY;
+  // console.log("node", node);
+
+  const props = getNodeProps(node);
+  // console.log("props", props);
+
   return returnType;
+}
+
+function getNodeProps(node: PlainElementNode) {
+  const codegenNode = node.codegenNode!;
+  if (codegenNode.type === NodeTypes.VNODE_CALL) {
+    return codegenNode.props;
+  }
+  return null as any;
 }
 
 export function isSingleElementRoot(
