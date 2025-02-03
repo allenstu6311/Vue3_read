@@ -10,6 +10,7 @@ import {
   ArrayExpression,
   CacheExpression,
   ConstantTypes,
+  createSimpleExpression,
   DirectiveNode,
   ElementNode,
   ExpressionNode,
@@ -78,6 +79,9 @@ export interface TransformContext
   onNodeRemoved(): void;
   addIdentifiers(exp: ExpressionNode | string): void;
   removeIdentifiers(exp: ExpressionNode | string): void;
+  /**
+   * 提升
+   */
   hoist(exp: string | JSChildNode | ArrayExpression): SimpleExpressionNode;
   cache(exp: JSChildNode, isVNode?: boolean): CacheExpression;
   constantCache: WeakMap<TemplateChildNode, ConstantTypes>;
@@ -101,6 +105,11 @@ export interface DirectiveTransformResult {
   ssrTagParts?: TemplateLiteral["elements"];
 }
 
+/**
+ * 建立 AST 轉換過程的上下文 context，
+ * 用來存儲模板的編譯訊息，並提供 管理 AST
+ * 節點與編譯工具函數的機制。
+ */
 export function createTransformContext(
   root: RootNode,
   {
@@ -129,7 +138,7 @@ export function createTransformContext(
   }: TransformOptions
 ): TransformContext {
   const nameMatch = filename.replace(/\?.*$/, "").match(/([^/\\]+)\.\w+$/);
-  const context: TransformContext | any = {
+  const context: TransformContext = {
     filename,
     selfName: nameMatch && capitalize(camelize(nameMatch[1])),
     prefixIdentifiers,
@@ -182,7 +191,7 @@ export function createTransformContext(
      * 記錄模板編譯過程中所需的工具函數（helpers），並增加該 helper 的引用次數。
      * 果該 helper 尚未被引用，則初始化它的引用次數為 1。
      */
-    helper(name: string) {
+    helper(name) {
       const count = context.helpers.get(name) || 0;
       context.helpers.set(name, count + 1);
       return name; //Symbol()
@@ -191,7 +200,7 @@ export function createTransformContext(
      * 減少指定 helper 的引用次數。
      * 如果引用次數降為 0，則從上下文中移除該 helper。
      */
-    removeHelper(name: string) {
+    removeHelper(name) {
       const count = context.helpers.get(name);
       if (count) {
         const currentCount = count - 1;
@@ -202,7 +211,25 @@ export function createTransformContext(
         }
       }
     },
-    hoist(exp: any) {},
+    helperString(): any {},
+    replaceNode() {},
+    removeNode() {},
+    onNodeRemoved: NOOP,
+    addIdentifiers() {},
+    removeIdentifiers() {},
+    hoist(exp) {
+      if (isString(exp)) exp = createSimpleExpression(exp);
+      context.hoists.push(exp);
+      const identifier = createSimpleExpression(
+        `_hoisted_${context.hoists.length}`,
+        false,
+        exp.loc,
+        ConstantTypes.CAN_CACHE
+      );
+      identifier.hoisted = exp;
+      return identifier;
+    },
+    cache(): any {},
   };
 
   return context;
@@ -214,6 +241,7 @@ export function transform(root: RootNode, options: TransformOptions): void {
   traverseNode(root, context);
 
   if (options.hoistStatic) {
+    // 快取靜態節點
     cacheStatic(root, context);
   }
   createRootCodegen(root, context);

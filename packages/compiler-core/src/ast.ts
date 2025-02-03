@@ -195,7 +195,7 @@ export type ParentNode = RootNode | ElementNode;
 export interface RootNode extends Node {
   type: NodeTypes.ROOT;
   source: string;
-  children: any[];
+  children: TemplateChildNode[];
   helpers: Set<symbol>;
   components: string[];
   directives: string[];
@@ -411,30 +411,6 @@ export interface SimpleExpressionNode extends Node {
   isHandlerKey?: boolean;
 }
 
-/**
- * 創建 AST 的簡單表達式節點（SimpleExpressionNode）
- *
- * @param content - 表達式的內容，例如 `"msg"` 或 `"1 + 1"`
- * @param isStatic - 是否為靜態表達式，預設為 `false`
- * @param loc - 表達式在原始模板中的位置信息，預設為 `locStub`
- * @param constType - 常量類型，決定該表達式是否可以進一步優化，預設為 `NOT_CONSTANT`
- * @returns 返回一個 `SimpleExpressionNode`，用於 AST 轉換過程
- */
-export function createSimpleExpression(
-  content: SimpleExpressionNode["content"],
-  isStatic: SimpleExpressionNode["isStatic"] = false,
-  loc: SourceLocation = locStub,
-  constType: ConstantTypes = ConstantTypes.NOT_CONSTANT
-): SimpleExpressionNode {
-  return {
-    type: NodeTypes.SIMPLE_EXPRESSION,
-    loc,
-    content,
-    isStatic,
-    constType: isStatic ? ConstantTypes.CAN_STRINGIFY : constType,
-  };
-}
-
 export interface CacheExpression extends Node {
   type: NodeTypes.JS_CACHE_EXPRESSION;
   index: number;
@@ -489,7 +465,9 @@ export interface DirectiveArgumentNode extends ArrayExpression {
     | [string, ExpressionNode, ExpressionNode]
     | [string, ExpressionNode, ExpressionNode, ObjectExpression];
 }
-
+/**
+ * 渲染函式的核心
+ */
 export interface VNodeCall extends Node {
   type: NodeTypes.VNODE_CALL;
   tag: string | symbol | CallExpression;
@@ -502,6 +480,9 @@ export interface VNodeCall extends Node {
     | SimpleExpressionNode // hoisted
     | CacheExpression // cached
     | undefined;
+  /**
+   * 決定 Vue 如何優化該 VNode
+   */
   patchFlag: PatchFlags | undefined;
   dynamicProps: string | SimpleExpressionNode | undefined;
   directives: DirectiveArguments | undefined;
@@ -641,4 +622,28 @@ export function createCallExpression<T extends CallExpression["callee"]>(
     callee,
     arguments: args,
   } as InferCodegenNodeType<T>;
+}
+
+/**
+ * 創建 AST 的簡單表達式節點（SimpleExpressionNode）
+ *
+ * @param content - 表達式的內容，例如 `"msg"` 或 `"1 + 1"`
+ * @param isStatic - 是否為靜態表達式，預設為 `false`
+ * @param loc - 表達式在原始模板中的位置信息，預設為 `locStub`
+ * @param constType - 常量類型，決定該表達式是否可以進一步優化，預設為 `NOT_CONSTANT`
+ * @returns 返回一個 `SimpleExpressionNode`，用於 AST 轉換過程
+ */
+export function createSimpleExpression(
+  content: SimpleExpressionNode["content"],
+  isStatic: SimpleExpressionNode["isStatic"] = false,
+  loc: SourceLocation = locStub,
+  constType: ConstantTypes = ConstantTypes.NOT_CONSTANT
+): SimpleExpressionNode {
+  return {
+    type: NodeTypes.SIMPLE_EXPRESSION,
+    loc,
+    content,
+    isStatic,
+    constType: isStatic ? ConstantTypes.CAN_STRINGIFY : constType,
+  };
 }

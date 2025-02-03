@@ -113,6 +113,4 @@ function genFunctionPreamble(ast: RootNode, context: CodegenContext) {
   if (helpers.length > 0) {
     push(`const _Vue = ${VueBinding}\n`, NewlineType.End);
   }
-
-  console.log(ast.hoists);
 }

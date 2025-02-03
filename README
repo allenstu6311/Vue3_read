@@ -1,6 +1,6 @@
 tsc -w 並開啟根目錄下的 index.html
 
-# 目前看到 hoist
+# 目前看到 createCodegenContext push
 
 #需要了解
 

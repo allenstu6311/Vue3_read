@@ -34,9 +34,12 @@ function walk(
 ) {
   const { children } = node;
   const toCache: (PlainElementNode | TextCallNode)[] = [];
+  // console.log("children", children);
 
   for (let i = 0; i < children.length; i++) {
     const child = children[i];
+
+    // 只有一般節點及文字可以使用快取
     if (
       child.type === NodeTypes.ELEMENT &&
       child.tagType === ElementTypes.ELEMENT
@@ -55,11 +58,9 @@ function walk(
           continue;
         }
       } else {
-        // 目前會走這裡
         const codegenNode = child.codegenNode!;
         if (codegenNode.type === NodeTypes.VNODE_CALL) {
           const flag = codegenNode.patchFlag;
-          // console.log("flag", flag);
           if (
             (flag === undefined ||
               flag === PatchFlags.NEED_PATCH ||
@@ -74,6 +75,19 @@ function walk(
           }
         }
       }
+    } else if (child.type === NodeTypes.TEXT_CALL) {
+      const constantType = doNotHoistNode
+        ? ConstantTypes.NOT_CONSTANT
+        : getConstantType(child, context);
+      if (constantType >= ConstantTypes.CAN_CACHE) {
+        toCache.push(child);
+        continue;
+      }
+    }
+
+    // walk further
+    if (child.type === NodeTypes.ELEMENT) {
+      walk(child, node, context, false, inFor);
     }
   }
 }
@@ -83,10 +97,44 @@ export function getConstantType(
   context: TransformContext
 ): ConstantTypes {
   const { constantCache } = context;
-  // console.log("node.type", node);
+
   switch (node.type) {
-    // case NodeTypes.ELEMENT:
-    //   break;
+    case NodeTypes.ELEMENT:
+      if (node.tagType !== ElementTypes.ELEMENT) {
+        return ConstantTypes.NOT_CONSTANT;
+      }
+      const cached = constantCache.get(node);
+
+      if (cached !== undefined) {
+        return cached;
+      }
+      const codegenNode = node.codegenNode!;
+      if (codegenNode.type !== NodeTypes.VNODE_CALL) {
+        return ConstantTypes.NOT_CONSTANT;
+      }
+      if (codegenNode.patchFlag === undefined) {
+        let returnType = ConstantTypes.CAN_STRINGIFY;
+
+        // 遍歷子節點，確保所有子節點都是靜態的
+        for (let i = 0; i < node.children.length; i++) {
+          const childType = getConstantType(node.children[i], context);
+          if (childType === ConstantTypes.NOT_CONSTANT) {
+            constantCache.set(node, ConstantTypes.NOT_CONSTANT);
+            return ConstantTypes.NOT_CONSTANT;
+          }
+          if (childType < returnType) {
+            returnType = childType;
+          }
+        }
+        constantCache.set(node, returnType);
+        return returnType;
+      } else {
+        constantCache.set(node, ConstantTypes.NOT_CONSTANT);
+        return ConstantTypes.NOT_CONSTANT;
+      }
+    case NodeTypes.TEXT:
+    case NodeTypes.COMMENT:
+      return ConstantTypes.CAN_STRINGIFY;
     case NodeTypes.INTERPOLATION:
     case NodeTypes.TEXT_CALL:
       return getConstantType(node.content, context);
