@@ -1,6 +1,8 @@
-import { RootNode } from "./ast.js";
+import { JSChildNode, RootNode, TemplateChildNode } from "./ast.js";
 import { CodegenContext, CodegenOptions, CodegenResult } from "./options.js";
 import { helperNameMap } from "./runtimeHelpers.js";
+
+type CodegenNode = TemplateChildNode | JSChildNode;
 
 function createCodegenContext(
   ast: RootNode,
@@ -45,11 +47,20 @@ function createCodegenContext(
     helper(key) {
       return `_${helperNameMap[key]}`;
     },
-    push(code, newlineIndex = NewlineType.None, node) {},
+    push(code, newlineIndex = NewlineType.None, node) {
+      context.code += code;
+    },
     indent() {},
     deindent() {},
-    newline() {},
+    newline() {
+      newline(context.indentLevel);
+    },
   };
+
+  function newline(n: number) {
+    context.push("\n" + `  `.repeat(n), NewlineType.Start);
+  }
+
   return context;
 }
 
@@ -113,4 +124,31 @@ function genFunctionPreamble(ast: RootNode, context: CodegenContext) {
   if (helpers.length > 0) {
     push(`const _Vue = ${VueBinding}\n`, NewlineType.End);
   }
+
+  genHoists(ast.hoists, context);
+  newline();
+  push(`return `);
 }
+
+function genHoists(hoists: (JSChildNode | null)[], context: CodegenContext) {
+  if (!hoists.length) return;
+  context.pure = true; //hoisting 過程中標記生成的代碼為純函數
+  const { push, newline } = context;
+  newline();
+
+  for (let i = 0; i < hoists.length; i++) {
+    const exp = hoists[i];
+    if (exp) {
+      push(`const _hoisted_${i + 1} = `);
+      genNode(exp, context);
+      newline();
+    }
+  }
+
+  context.pure = false;
+}
+
+function genNode(
+  node: CodegenNode | symbol | string,
+  context: CodegenContext
+) {}

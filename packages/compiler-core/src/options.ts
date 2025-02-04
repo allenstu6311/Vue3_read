@@ -393,18 +393,75 @@ export interface RawSourceMap {
 
 export interface CodegenContext
   extends Omit<Required<CodegenOptions>, "bindingMetadata" | "inline"> {
+  /**
+   * 原始 `.vue` 文件的內容，用於生成代碼時參考。
+   */
   source: string;
+
+  /**
+   * 目前累積的 JavaScript 代碼（最終 render() 會輸出這個變數）。
+   */
   code: string;
+
+  /**
+   * 當前生成的代碼所在行號（用於格式化輸出和 source map 追蹤）。
+   */
   line: number;
+
+  /**
+   * 當前代碼的列號，表示目前輸出的字符位置。
+   */
   column: number;
+
+  /**
+   * 當前處理的字符在 `source` 內的偏移量（從 0 開始計算）。
+   */
   offset: number;
+
+  /**
+   * 當前的縮排層級，用於控制輸出代碼的可讀性。
+   */
   indentLevel: number;
+
+  /**
+   * 是否在 `/* @PURE * /` 模式下生成代碼，讓編譯器可以進一步優化。(提示壓縮工具用)
+   */
   pure: boolean;
+
+  /**
+   * 來源映射（source map），用於追蹤輸出代碼對應的 `.vue` 文件位置。
+   */
   map?: CodegenSourceMapGenerator;
+
+  /**
+   * 取得 Vue Runtime Helper，例如 `_createElementVNode`。
+   * @param key Vue 編譯器內部的 symbol（例如 `CREATE_ELEMENT_VNODE`）。
+   * @returns 轉換後的函數名稱，如 `_createElementVNode`。
+   */
   helper(key: symbol): string;
+
+  /**
+   * 將代碼插入到 `code` 變數中。
+   * @param code 要插入的 JavaScript 代碼。
+   * @param newlineIndex 可選，換行的索引值（通常自動計算）。
+   * @param node 可選，對應的 AST 節點（用於 source map）。
+   */
   push(code: string, newlineIndex?: number, node?: CodegenNode): void;
+
+  /**
+   * 增加一層縮排，影響之後插入的代碼格式。
+   */
   indent(): void;
+
+  /**
+   * 減少一層縮排。
+   * @param withoutNewLine 是否不換行（預設為 `false`，會換行）。
+   */
   deindent(withoutNewLine?: boolean): void;
+
+  /**
+   * 插入換行符，確保代碼可讀性。
+   */
   newline(): void;
 }
 
