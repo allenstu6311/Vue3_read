@@ -155,7 +155,8 @@ export type JSChildNode =
   | SimpleExpressionNode
   | ArrayExpression
   | ExpressionNode
-  | CallExpression;
+  | CallExpression
+  | ObjectExpression;
 
 /**
  * 代碼在文檔中的具體位置

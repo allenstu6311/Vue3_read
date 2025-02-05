@@ -68,3 +68,5 @@ export const camelize: (str: string) => string = cacheStringFunction(
 );
 
 export const isArray: typeof Array.isArray = Array.isArray;
+export const isSymbol = (val: unknown): val is symbol =>
+  typeof val === "symbol";
