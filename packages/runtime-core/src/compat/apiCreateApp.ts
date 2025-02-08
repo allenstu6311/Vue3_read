@@ -9,6 +9,7 @@ import {
   ComponentInternalInstance,
   ConcreteComponent,
   Data,
+  getComponentPublicInstance,
 } from "../component.js";
 import { ObjectEmitsOptions } from "../componentEmits.js";
 import { ComponentOptions } from "../componentOptions.js";
@@ -212,13 +213,15 @@ export function createAppAPI<HostElement>(
           } else if (namespace === false) {
             namespace = undefined;
           }
-          render(vnode, rootContainer, namespace);
-          isMounted = true;
+          // console.log("mount render", render);
 
+          render(vnode, rootContainer, namespace);
+
+          isMounted = true;
+          app._container = rootContainer;
+          return getComponentPublicInstance(vnode.component!);
           // console.log("vnode", vnode);
         }
-
-        return null as any;
       },
     } as App) as any;
 

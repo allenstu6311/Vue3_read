@@ -15,6 +15,9 @@ import {
   currentScopeId,
 } from "./componentRenderContext.js";
 import { RawSlots } from "./componentSlots.js";
+import { PatchFlags } from "../../shared/src/patchFlags.js";
+import { ReactiveFlags } from "../../reactivity/src/constants.js";
+import { SuspenseBoundary } from "./components/Suspense.js";
 
 export const Fragment = Symbol.for("v-fgt") as any as {
   __isFragment: true;
@@ -69,6 +72,10 @@ type VNodeChildAtom =
   | undefined
   | void;
 
+type VNodeMountHook = (vnode: VNode) => void;
+
+export type VNodeHook = VNodeMountHook | VNodeMountHook[];
+
 export type VNodeArrayChildren = Array<VNodeArrayChildren | VNodeChildAtom>;
 
 export type VNodeChild = VNodeChildAtom | VNodeArrayChildren;
@@ -96,7 +103,7 @@ export interface VNode<
   /**
    * @internal
    */
-  // [ReactiveFlags.SKIP]: true
+  [ReactiveFlags.SKIP]: true;
 
   type: VNodeTypes;
   props: (VNodeProps & ExtraProps) | null;
@@ -117,8 +124,8 @@ export interface VNode<
   slotScopeIds: string[] | null;
   children: VNodeNormalizedChildren;
   component: ComponentInternalInstance | null;
-  // dirs: DirectiveBinding[] | null
-  // transition: TransitionHooks<HostElement> | null
+  dirs: any;
+  transition: any;
 
   // DOM
   el: HostNode | null;
@@ -133,7 +140,7 @@ export interface VNode<
   staticCount: number;
 
   // suspense
-  // suspense: SuspenseBoundary | null
+  suspense: SuspenseBoundary | null;
   /**
    * @internal
    */
@@ -199,6 +206,72 @@ export type VNodeNormalizedRefAtom = {
    */
   f?: boolean;
 };
+
+export const blockStack: VNode["dynamicChildren"][] = [];
+export let currentBlock: VNode["dynamicChildren"] = null;
+
+/**
+ * Open a block.
+ * This must be called before `createBlock`. It cannot be part of `createBlock`
+ * because the children of the block are evaluated before `createBlock` itself
+ * is called. The generated code typically looks like this:
+ *
+ * ```js
+ * function render() {
+ *   return (openBlock(),createBlock('div', null, [...]))
+ * }
+ * ```
+ * disableTracking is true when creating a v-for fragment block, since a v-for
+ * fragment always diffs its children.
+ *
+ * @private
+ */
+export function openBlock(disableTracking = false): void {
+  blockStack.push((currentBlock = disableTracking ? null : []));
+}
+
+export function closeBlock(): void {
+  blockStack.pop();
+  currentBlock = blockStack[blockStack.length - 1] || null;
+}
+
+function setupBlock(vnode: VNode) {
+  // save current block children on the block vnode
+  // vnode.dynamicChildren =
+  //   isBlockTreeEnabled > 0 ? currentBlock || (EMPTY_ARR as any) : null
+  // close block
+  closeBlock();
+  // a block is always going to be patched, so track it as a child of its
+  // parent block
+  // if (isBlockTreeEnabled > 0 && currentBlock) {
+  //   currentBlock.push(vnode)
+  // }
+  return vnode;
+}
+
+/**
+ * @private
+ */
+export function createElementBlock(
+  type: string | typeof Fragment,
+  props?: Record<string, any> | null,
+  children?: any,
+  patchFlag?: number,
+  dynamicProps?: string[],
+  shapeFlag?: number
+): VNode {
+  return setupBlock(
+    createBaseVNode(
+      type,
+      props,
+      children,
+      patchFlag,
+      dynamicProps,
+      shapeFlag,
+      true /* isBlock */
+    )
+  );
+}
 
 export const createVNode = _createVNode as typeof _createVNode;
 
@@ -301,4 +374,78 @@ function _createVNode(
     isBlockNode,
     true
   );
+}
+
+export function normalizeVNode(child: VNodeChild): VNode {
+  if (isVNode(child)) {
+    // already vnode, this should be the most common since compiled templates
+    // always produce all-vnode children arrays
+    return cloneIfMounted(child);
+  }
+  return null as any;
+}
+
+// optimized normalization for template-compiled render fns
+export function cloneIfMounted(child: VNode): VNode {
+  console.log("cloneIfMounted", child);
+  return (child.el === null && child.patchFlag !== PatchFlags.CACHED) ||
+    child.memo
+    ? child
+    : cloneVNode(child);
+}
+
+export function cloneVNode<T, U>(
+  vnode: VNode<T, U>,
+  extraProps?: (Data & VNodeProps) | null,
+  mergeRef = false,
+  cloneTransition = false
+): VNode<T, U> {
+  const { props, ref, patchFlag, children, transition } = vnode;
+  const mergedProps = props;
+  const cloned: VNode<T, U> = {
+    __v_isVNode: true,
+    __v_skip: true,
+    type: vnode.type,
+    props: mergedProps,
+    key: mergedProps && normalizeKey(mergedProps),
+    ref: ref,
+    scopeId: vnode.scopeId,
+    slotScopeIds: vnode.slotScopeIds,
+    children: children,
+    target: vnode.target,
+    targetStart: vnode.targetStart,
+    targetAnchor: vnode.targetAnchor,
+    staticCount: vnode.staticCount,
+    shapeFlag: vnode.shapeFlag,
+    // if the vnode is cloned with extra props, we can no longer assume its
+    // existing patch flag to be reliable and need to add the FULL_PROPS flag.
+    // note: preserve flag for fragments since they use the flag for children
+    // fast paths only.
+    patchFlag:
+      extraProps && vnode.type !== Fragment
+        ? patchFlag === PatchFlags.CACHED // hoisted node
+          ? PatchFlags.FULL_PROPS
+          : patchFlag | PatchFlags.FULL_PROPS
+        : patchFlag,
+    dynamicProps: vnode.dynamicProps,
+    dynamicChildren: vnode.dynamicChildren,
+    appContext: vnode.appContext,
+    dirs: vnode.dirs,
+    transition,
+
+    // These should technically only be non-null on mounted VNodes. However,
+    // they *should* be copied for kept-alive vnodes. So we just always copy
+    // them since them being non-null during a mount doesn't affect the logic as
+    // they will simply be overwritten.
+    component: vnode.component,
+    suspense: vnode.suspense,
+    ssContent: vnode.ssContent && cloneVNode(vnode.ssContent),
+    ssFallback: vnode.ssFallback && cloneVNode(vnode.ssFallback),
+    el: vnode.el,
+    anchor: vnode.anchor,
+    ctx: vnode.ctx,
+    ce: vnode.ce,
+  };
+
+  return cloned;
 }

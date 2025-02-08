@@ -8,8 +8,12 @@ import {
 } from "./component.js";
 import { SuspenseBoundary } from "./components/Suspense.js";
 import { createHydrationFunctions } from "./hydration.js";
-import type { VNode, VNodeProps } from "./vnode.js";
+import type { VNode, VNodeHook, VNodeProps } from "./vnode.js";
 import { Text } from "./vnode.js";
+import { ReactiveEffect } from "../../reactivity/src/effect.js";
+import { SchedulerJob } from "./scheduler.js";
+import { isAsyncWrapper } from "./apiAsyncComponent.js";
+import { renderComponentRoot } from "./componentRenderUtils.js";
 
 /**
  * RendererNode 可以是任何物件。在核心渲染邏輯中，它不會被直接操作，
@@ -175,7 +179,8 @@ function baseCreateRenderer(
     }
 
     const { type, ref, shapeFlag } = n2;
-
+    console.log("type", type);
+    console.log("shapeFlag", shapeFlag);
     switch (type) {
       case Text:
         processText(n1, n2, container, anchor);
@@ -183,7 +188,21 @@ function baseCreateRenderer(
 
       default:
         if (shapeFlag & ShapeFlags.ELEMENT) {
+          console.log("processElement");
+
+          processElement(
+            n1,
+            n2,
+            container,
+            anchor,
+            parentComponent,
+            parentSuspense,
+            namespace,
+            slotScopeIds,
+            optimized
+          );
         } else if (shapeFlag & ShapeFlags.COMPONENT) {
+          console.log("processComponent");
           processComponent(
             n1,
             n2,
@@ -210,6 +229,43 @@ function baseCreateRenderer(
         anchor
       );
     }
+  };
+
+  const processElement = (
+    n1: VNode | null,
+    n2: VNode,
+    container: RendererElement,
+    anchor: RendererNode | null,
+    parentComponent: ComponentInternalInstance | null,
+    parentSuspense: SuspenseBoundary | null,
+    namespace: ElementNamespace,
+    slotScopeIds: string[] | null,
+    optimized: boolean
+  ) => {
+    if (n1 == null) {
+    } else {
+      patchElement(
+        n1,
+        n2,
+        parentComponent,
+        parentSuspense,
+        namespace,
+        slotScopeIds,
+        optimized
+      );
+    }
+  };
+
+  const patchElement = (
+    n1: VNode,
+    n2: VNode,
+    parentComponent: ComponentInternalInstance | null,
+    parentSuspense: SuspenseBoundary | null,
+    namespace: ElementNamespace,
+    slotScopeIds: string[] | null,
+    optimized: boolean
+  ) => {
+    console.log("n2", n2);
   };
 
   const processComponent = (
@@ -263,6 +319,48 @@ function baseCreateRenderer(
     if (!compatMountInstance) {
       setupComponent(instance, false);
     }
+    setupRenderEffect(
+      instance,
+      initialVNode,
+      container,
+      anchor,
+      parentSuspense,
+      namespace,
+      optimized
+    );
+  };
+
+  const setupRenderEffect: SetupRenderEffectFn = (
+    instance,
+    initialVNode,
+    container,
+    anchor,
+    parentSuspense,
+    namespace: ElementNamespace,
+    optimized
+  ) => {
+    const componentUpdateFn = () => {
+      if (!instance.isMounted) {
+        console.log("componentUpdateFn");
+        let vnodeHook: VNodeHook | null | undefined;
+        const { el, props } = initialVNode;
+        const { bm, m, parent, root, type } = instance;
+        const isAsyncWrapperVNode = isAsyncWrapper(initialVNode);
+
+        const subTree = (instance.subTree = renderComponentRoot(instance));
+        console.log("subTree", subTree);
+      }
+    };
+    // create reactive effect for rendering
+    instance.scope.on();
+    const effect = (instance.effect = new ReactiveEffect(componentUpdateFn));
+    instance.scope.off();
+
+    const update = (instance.update = effect.run.bind(effect));
+    const job: SchedulerJob = (instance.job = effect.runIfDirty.bind(effect));
+    job.i = instance;
+    job.id = instance.uid;
+    update();
   };
 
   const unmount: UnmountFn = () => {};

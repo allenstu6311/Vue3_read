@@ -1,6 +1,10 @@
-import { isString, isSymbol } from "../../shared/src/general.js";
+import { isArray, isString, isSymbol } from "../../shared/src/general.js";
 import {
+  CallExpression,
   ExpressionNode,
+  getVNodeBlockHelper,
+  getVNodeHelper,
+  InterpolationNode,
   JSChildNode,
   NodeTypes,
   ObjectExpression,
@@ -10,8 +14,14 @@ import {
   VNodeCall,
 } from "./ast.js";
 import { CodegenContext, CodegenOptions, CodegenResult } from "./options.js";
-import { helperNameMap } from "./runtimeHelpers.js";
+import {
+  helperNameMap,
+  OPEN_BLOCK,
+  TO_DISPLAY_STRING,
+} from "./runtimeHelpers.js";
 import { isSimpleIdentifier } from "./utils.js";
+
+const PURE_ANNOTATION = `/*@__PURE__*/`;
 
 type CodegenNode = TemplateChildNode | JSChildNode;
 const aliasHelper = (s: symbol) => `${helperNameMap[s]}: _${helperNameMap[s]}`;
@@ -65,7 +75,13 @@ function createCodegenContext(
     indent() {
       newline(++context.indentLevel);
     },
-    deindent() {},
+    deindent(withoutNewLine = false) {
+      if (withoutNewLine) {
+        --context.indentLevel;
+      } else {
+        newline(--context.indentLevel);
+      }
+    },
     newline() {
       newline(context.indentLevel);
     },
@@ -138,14 +154,25 @@ export function generate(
   // generate asset
   if (ast.components.length) {
   }
-  console.log(context.code);
+
+  // generate the VNode tree expression
+  if (!ssr) {
+    push(`return `);
+  }
 
   if (ast.codegenNode) {
     genNode(ast.codegenNode, context);
   } else {
     push(`null`);
   }
+  if (useWithBlock) {
+    deindent();
+    push(`}`);
+  }
 
+  deindent();
+  push(`}`);
+  // console.log(context.code);
   return {
     ast,
     code: context.code,
@@ -272,7 +299,76 @@ function genExpression(node: SimpleExpressionNode, context: CodegenContext) {
   );
 }
 
-function genVNodeCall(node: VNodeCall, context: CodegenContext) {}
+function genVNodeCall(node: VNodeCall, context: CodegenContext) {
+  const { push, helper, pure } = context;
+  const {
+    tag,
+    props,
+    children,
+    patchFlag,
+    dynamicProps,
+    directives,
+    isBlock,
+    disableTracking,
+    isComponent,
+  } = node;
+
+  let patchFlagString = String(patchFlag); //1
+  // console.log("patchFlagString", patchFlagString);
+  if (isBlock) {
+    push(`(${helper(OPEN_BLOCK)}(${disableTracking ? `true` : ``}), `);
+  }
+
+  const callHelper: symbol = isBlock
+    ? getVNodeBlockHelper(context.inSSR, isComponent)
+    : getVNodeHelper(context.inSSR, isComponent);
+
+  push(helper(callHelper) + `(`, NewlineType.None, node);
+  genNodeList(
+    genNullableArgs([tag, props, children, patchFlagString, dynamicProps]),
+    context
+  );
+  push(`)`);
+  if (isBlock) {
+    push(`)`);
+  }
+}
+
+function genNullableArgs(args: any[]): CallExpression["arguments"] {
+  let i = args.length;
+  while (i--) {
+    if (args[i] != null) break;
+  }
+  return args.slice(0, i + 1).map((arg) => arg || `null`);
+}
+
+function genNodeList(
+  nodes: (string | symbol | CodegenNode | TemplateChildNode[])[],
+  context: CodegenContext,
+  multilines: boolean = false,
+  comma: boolean = true
+) {
+  const { push, newline } = context;
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
+    // console.log("genNodeList", node);
+
+    if (isString(node)) {
+      push(node, NewlineType.Unknown);
+    } else if (isArray(node)) {
+    } else {
+      genNode(node, context);
+    }
+    if (i < nodes.length - 1) {
+      if (multilines) {
+        comma && push(",");
+        newline();
+      } else {
+        comma && push(", ");
+      }
+    }
+  }
+}
 
 function genNode(node: CodegenNode | symbol | string, context: CodegenContext) {
   if (isString(node)) {
@@ -283,11 +379,14 @@ function genNode(node: CodegenNode | symbol | string, context: CodegenContext) {
     context.push(context.helper(node));
     return;
   }
-  console.log("node", node);
+  // console.log("genNode", node);
 
   switch (node.type) {
     case NodeTypes.SIMPLE_EXPRESSION:
       genExpression(node, context);
+      break;
+    case NodeTypes.INTERPOLATION:
+      genInterpolation(node, context);
       break;
     case NodeTypes.JS_OBJECT_EXPRESSION:
       genObjectExpression(node, context);
@@ -298,4 +397,12 @@ function genNode(node: CodegenNode | symbol | string, context: CodegenContext) {
     default:
       break;
   }
+}
+
+function genInterpolation(node: InterpolationNode, context: CodegenContext) {
+  const { push, helper, pure } = context;
+  if (pure) push(PURE_ANNOTATION);
+  push(`${helper(TO_DISPLAY_STRING)}(`);
+  genNode(node.content, context);
+  push(`)`);
 }

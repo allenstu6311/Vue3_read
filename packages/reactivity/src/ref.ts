@@ -67,12 +67,18 @@ class RefImpl<T = any> {
 
   // dep
 
+  public readonly [ReactiveFlags.IS_REF] = true;
+  public readonly [ReactiveFlags.IS_SHALLOW]: boolean = false;
+
   constructor(value: T, isShallow: boolean) {
     this._rawValue = isShallow ? value : toRaw(value);
     this._value = isShallow ? value : toReactive(value);
+    this[ReactiveFlags.IS_SHALLOW] = isShallow;
   }
 
   get value() {
+    console.log("get");
+
     return this._value;
   }
 
@@ -86,10 +92,14 @@ export function unref<T>(ref: MaybeRef<T> | ComputedRef<T>): T {
 }
 
 const shallowUnwrapHandlers: ProxyHandler<any> = {
-  get: (target, key, receiver) =>
-    key === ReactiveFlags.RAW
+  get: (target, key, receiver) => {
+    console.log("target", target);
+
+    return key === ReactiveFlags.RAW
       ? target
-      : unref(Reflect.get(target, key, receiver)),
+      : unref(Reflect.get(target, key, receiver));
+  },
+
   set: (target, key, value, receiver) => {
     const oldValue = target[key];
     if (isRef(oldValue) && !isRef(value)) {
@@ -104,6 +114,14 @@ const shallowUnwrapHandlers: ProxyHandler<any> = {
 export function proxyRefs<T extends object>(
   objectWithRefs: T
 ): ShallowUnwrapRef<T> {
+  if (isReactive(objectWithRefs)) {
+    return objectWithRefs as any;
+  } else {
+    console.log("else", objectWithRefs, shallowUnwrapHandlers);
+
+    return new Proxy(objectWithRefs, shallowUnwrapHandlers);
+  }
+
   return isReactive(objectWithRefs)
     ? objectWithRefs
     : new Proxy(objectWithRefs, shallowUnwrapHandlers);

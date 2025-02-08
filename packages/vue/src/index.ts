@@ -8,6 +8,7 @@ import {
   isString,
   NOOP,
 } from "../../shared/src/general.js";
+import * as runtimeDom from "../../runtime-dom/src/index.js";
 
 const compileCache: Record<string, RenderFunction> = Object.create(null);
 
@@ -31,10 +32,17 @@ function compileToFunction(
     options
   );
 
-  // const { code } = compile(template);
-  compile(template, opts);
-  return null as any;
+  const { code } = compile(template);
+  // console.log("code", code);
+
+  const render = new Function("Vue", code)(runtimeDom);
+  // console.log("compileCache", compileCache);
+
+  // compile(template, opts);
+  // return null as any;
+  return (compileCache[key] = render);
 }
 registerRuntimeCompiler(compileToFunction);
 
+export { compileToFunction as compile };
 export * from "../../runtime-dom/src/index.js";

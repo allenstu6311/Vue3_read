@@ -1,10 +1,11 @@
+import { EffectScope } from "./../../reactivity/src/effectScope.js";
 import { CompilerOptions } from "../../compiler-core/src/options.js";
 import {
   pauseTracking,
   ReactiveEffect,
   resetTracking,
 } from "../../reactivity/src/effect.js";
-import { EffectScope } from "../../reactivity/src/effectScope.js";
+
 import { proxyRefs } from "../../reactivity/src/ref.js";
 import {
   EMPTY_OBJ,
@@ -31,6 +32,8 @@ import {
 } from "./componentProps.js";
 import {
   ComponentPublicInstance,
+  exposeSetupStateOnRenderContext,
+  PublicInstanceProxyHandlers,
   RuntimeCompiledPublicInstanceProxyHandlers,
 } from "./componentPublicInstance.js";
 import { SuspenseBoundary } from "./components/Suspense.js";
@@ -489,6 +492,7 @@ export function createComponentInstance(
   };
 
   instance.root = parent ? parent.root : instance;
+  instance.ctx = { _: instance };
 
   return instance;
 }
@@ -525,6 +529,8 @@ function setupStatefulComponent(
 
   // 建立快取
   instance.accessCache = Object.create(null);
+  // 1. create public instance / render proxy
+  instance.proxy = new Proxy(instance.ctx, PublicInstanceProxyHandlers);
 
   const { setup } = Component;
   if (setup) {
@@ -553,7 +559,14 @@ export function handleSetupResult(
 ): void {
   if (isFunction(setupResult)) {
   } else if (isObject(setupResult)) {
+    console.log("setupResult", setupResult);
+
     instance.setupState = proxyRefs(setupResult);
+    console.log("instance.setupState", instance.setupState);
+    // debugger;
+    const { setupState } = instance;
+    console.log("val", setupState.test);
+    exposeSetupStateOnRenderContext(instance);
   }
   finishComponentSetup(instance, isSSR);
 }
@@ -570,9 +583,18 @@ export function finishComponentSetup(
       const template = Component.template; //{{ test }}
       if (template) {
         // 正式渲染
-        Component.render = compile(template);
+        Component.render = compile(template, {});
       }
     }
     instance.render = (Component.render || NOOP) as InternalRenderFunction;
+    // console.log("instance.render ", instance.render);
   }
+}
+
+export function getComponentPublicInstance(
+  instance: ComponentInternalInstance
+): ComponentPublicInstance | ComponentInternalInstance["exposed"] | null {
+  // console.log("instance", instance);
+
+  return instance.proxy;
 }

@@ -487,6 +487,10 @@ export interface VNodeCall extends Node {
   patchFlag: PatchFlags | undefined;
   dynamicProps: string | SimpleExpressionNode | undefined;
   directives: DirectiveArguments | undefined;
+  /**
+   * Block Vnode
+   * 只更新動態子節點，不重新渲染父層
+   */
   isBlock: boolean;
   disableTracking: boolean;
   isComponent: boolean;
