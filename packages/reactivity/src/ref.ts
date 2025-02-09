@@ -67,18 +67,17 @@ class RefImpl<T = any> {
 
   // dep
 
-  public readonly [ReactiveFlags.IS_REF] = true;
-  public readonly [ReactiveFlags.IS_SHALLOW]: boolean = false;
+  public readonly [ReactiveFlags.IS_REF] = true; // 通過isRef得判斷能夠直接取值，不須.value
+  // public readonly [ReactiveFlags.IS_SHALLOW]: boolean = false;
 
   constructor(value: T, isShallow: boolean) {
     this._rawValue = isShallow ? value : toRaw(value);
     this._value = isShallow ? value : toReactive(value);
-    this[ReactiveFlags.IS_SHALLOW] = isShallow;
+
+    // this[ReactiveFlags.IS_SHALLOW] = isShallow;
   }
 
   get value() {
-    console.log("get");
-
     return this._value;
   }
 
@@ -93,8 +92,6 @@ export function unref<T>(ref: MaybeRef<T> | ComputedRef<T>): T {
 
 const shallowUnwrapHandlers: ProxyHandler<any> = {
   get: (target, key, receiver) => {
-    console.log("target", target);
-
     return key === ReactiveFlags.RAW
       ? target
       : unref(Reflect.get(target, key, receiver));
@@ -111,17 +108,12 @@ const shallowUnwrapHandlers: ProxyHandler<any> = {
   },
 };
 
+/**
+ * 訪問資料可直接觸發get不須.value
+ */
 export function proxyRefs<T extends object>(
   objectWithRefs: T
 ): ShallowUnwrapRef<T> {
-  if (isReactive(objectWithRefs)) {
-    return objectWithRefs as any;
-  } else {
-    console.log("else", objectWithRefs, shallowUnwrapHandlers);
-
-    return new Proxy(objectWithRefs, shallowUnwrapHandlers);
-  }
-
   return isReactive(objectWithRefs)
     ? objectWithRefs
     : new Proxy(objectWithRefs, shallowUnwrapHandlers);

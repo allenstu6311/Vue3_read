@@ -1,3 +1,5 @@
+import { makeMap } from "./makeMap.js";
+
 export const extend: typeof Object.assign = Object.assign;
 export const NOOP = (): void => {};
 export const isFunction = (val: unknown): val is Function =>
@@ -70,3 +72,11 @@ export const camelize: (str: string) => string = cacheStringFunction(
 export const isArray: typeof Array.isArray = Array.isArray;
 export const isSymbol = (val: unknown): val is symbol =>
   typeof val === "symbol";
+
+export const isReservedProp: (key: string) => boolean = /*@__PURE__*/ makeMap(
+  // the leading comma is intentional so empty string "" is also included
+  ",key,ref,ref_for,ref_key," +
+    "onVnodeBeforeMount,onVnodeMounted," +
+    "onVnodeBeforeUpdate,onVnodeUpdated," +
+    "onVnodeBeforeUnmount,onVnodeUnmounted"
+);

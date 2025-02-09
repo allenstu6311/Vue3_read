@@ -339,6 +339,13 @@ function createBaseVNode(
     ctx: currentRenderingInstance,
   } as VNode;
 
+  if (needFullChildrenNormalization) {
+  } else if (children) {
+    vnode.shapeFlag |= isString(children)
+      ? ShapeFlags.TEXT_CHILDREN
+      : ShapeFlags.ARRAY_CHILDREN;
+  }
+
   return vnode;
 }
 
@@ -387,7 +394,6 @@ export function normalizeVNode(child: VNodeChild): VNode {
 
 // optimized normalization for template-compiled render fns
 export function cloneIfMounted(child: VNode): VNode {
-  console.log("cloneIfMounted", child);
   return (child.el === null && child.patchFlag !== PatchFlags.CACHED) ||
     child.memo
     ? child

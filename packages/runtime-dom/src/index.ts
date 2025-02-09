@@ -6,15 +6,15 @@ import {
 } from "../../runtime-core/src/renderer.js";
 import { extend, isFunction, isString } from "../../shared/src/general.js";
 import { nodeOps } from "./nodeOps.js";
-import { patchProps } from "./patchProp.js";
+import { patchProp } from "./patchProp.js";
 
-const rendererOptions = /*@__PURE__*/ extend({ patchProps }, nodeOps) as any;
+const rendererOptions = /*@__PURE__*/ extend({ patchProp }, nodeOps) as any;
 
 let renderer: Renderer<Element | ShadowRoot> | HydrationRenderer;
 
 interface renderApp {
   render: Function;
-  createApp: Function;
+  createApp: Function; // 開發者使用得createApp
 }
 function ensureRenderer(): renderApp {
   return (

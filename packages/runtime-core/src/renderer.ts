@@ -1,5 +1,5 @@
 import { ShapeFlags } from "./../../shared/src/shapeFlags.js";
-import { NOOP } from "../../shared/src/general.js";
+import { isReservedProp, NOOP } from "../../shared/src/general.js";
 import { createAppAPI, CreateAppFunction } from "./compat/apiCreateApp.js";
 import {
   ComponentInternalInstance,
@@ -179,8 +179,8 @@ function baseCreateRenderer(
     }
 
     const { type, ref, shapeFlag } = n2;
-    console.log("type", type);
-    console.log("shapeFlag", shapeFlag);
+    // console.log("type", type);
+    // console.log("shapeFlag", shapeFlag);
     switch (type) {
       case Text:
         processText(n1, n2, container, anchor);
@@ -188,8 +188,6 @@ function baseCreateRenderer(
 
       default:
         if (shapeFlag & ShapeFlags.ELEMENT) {
-          console.log("processElement");
-
           processElement(
             n1,
             n2,
@@ -202,7 +200,6 @@ function baseCreateRenderer(
             optimized
           );
         } else if (shapeFlag & ShapeFlags.COMPONENT) {
-          console.log("processComponent");
           processComponent(
             n1,
             n2,
@@ -243,6 +240,16 @@ function baseCreateRenderer(
     optimized: boolean
   ) => {
     if (n1 == null) {
+      mountElement(
+        n2,
+        container,
+        anchor,
+        parentComponent,
+        parentSuspense,
+        namespace,
+        slotScopeIds,
+        optimized
+      );
     } else {
       patchElement(
         n1,
@@ -256,6 +263,59 @@ function baseCreateRenderer(
     }
   };
 
+  const mountElement = (
+    vnode: VNode,
+    container: RendererElement,
+    anchor: RendererNode | null,
+    parentComponent: ComponentInternalInstance | null,
+    parentSuspense: SuspenseBoundary | null,
+    namespace: ElementNamespace,
+    slotScopeIds: string[] | null,
+    optimized: boolean
+  ) => {
+    let el: RendererElement;
+    let vnodeHook: VNodeHook | undefined | null;
+    const { props, shapeFlag, transition, dirs } = vnode;
+    // console.log("shapeFlag", shapeFlag);
+
+    el = vnode.el = hostCreateElement(
+      vnode.type as string,
+      namespace,
+      props && props.is,
+      props
+    );
+
+    if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
+      hostSetElementText(el, vnode.children as string);
+    } else if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+    }
+
+    // scopeId
+    // setScopeId(el, vnode, vnode.scopeId, slotScopeIds, parentComponent);
+
+    if (props) {
+      for (const key in props) {
+        if (key !== "value" && !isReservedProp(key)) {
+          hostPatchProp(el, key, null, props[key], namespace, parentComponent);
+        }
+      }
+    }
+
+    hostInsert(el, container, anchor);
+  };
+
+  const setScopeId = (
+    el: RendererElement,
+    vnode: VNode,
+    scopeId: string | null,
+    slotScopeIds: string[] | null,
+    parentComponent: ComponentInternalInstance | null
+  ) => {
+    if (parentComponent) {
+      let subTree = parentComponent.subTree;
+    }
+  };
+
   const patchElement = (
     n1: VNode,
     n2: VNode,
@@ -265,7 +325,8 @@ function baseCreateRenderer(
     slotScopeIds: string[] | null,
     optimized: boolean
   ) => {
-    console.log("n2", n2);
+    const el = (n2.el = n1.el!);
+    // console.log("el", el);
   };
 
   const processComponent = (
@@ -346,9 +407,17 @@ function baseCreateRenderer(
         const { el, props } = initialVNode;
         const { bm, m, parent, root, type } = instance;
         const isAsyncWrapperVNode = isAsyncWrapper(initialVNode);
-
         const subTree = (instance.subTree = renderComponentRoot(instance));
         console.log("subTree", subTree);
+        patch(
+          null,
+          subTree,
+          container,
+          anchor,
+          instance,
+          parentSuspense,
+          namespace
+        );
       }
     };
     // create reactive effect for rendering

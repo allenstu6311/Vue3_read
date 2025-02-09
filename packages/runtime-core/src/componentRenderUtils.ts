@@ -29,21 +29,9 @@ export function renderComponentRoot(
   if (vnode.shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
     const proxyToUse = withProxy || proxy;
     const thisProxy = proxyToUse;
-    // console.log("proxyToUse", proxyToUse);
-    // console.log(
-    //   "dom",
-    //   render!.call(
-    //     thisProxy,
-    //     proxyToUse!,
-    //     renderCache,
-    //     props,
-    //     setupState,
-    //     data,
-    //     ctx
-    //   )
-    // );
 
     // debugger;
+    // 生成vnode
     result = normalizeVNode(
       render!.call(
         thisProxy,

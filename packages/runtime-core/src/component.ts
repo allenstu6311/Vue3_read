@@ -559,13 +559,7 @@ export function handleSetupResult(
 ): void {
   if (isFunction(setupResult)) {
   } else if (isObject(setupResult)) {
-    console.log("setupResult", setupResult);
-
-    instance.setupState = proxyRefs(setupResult);
-    console.log("instance.setupState", instance.setupState);
-    // debugger;
-    const { setupState } = instance;
-    console.log("val", setupState.test);
+    instance.setupState = proxyRefs(setupResult); // 讓html可直接{{ test }}觸發get訪問數據，而不用.value
     exposeSetupStateOnRenderContext(instance);
   }
   finishComponentSetup(instance, isSSR);
