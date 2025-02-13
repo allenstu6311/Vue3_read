@@ -89,7 +89,7 @@ export enum PatchFlags {
   /**
    * 表示該 `vnode` 是 **已緩存的靜態節點**。
    * 這也可作為 hydration（SSR 頁面渲染恢復時）的提示，
-   * 告訴 Vue **跳過整個子樹**，因為靜態內容不需要更新。
+   * 不會進入diff過程
    */
   CACHED = -1,
 

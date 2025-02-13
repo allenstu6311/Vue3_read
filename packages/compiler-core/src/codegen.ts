@@ -11,6 +11,7 @@ import {
   RootNode,
   SimpleExpressionNode,
   TemplateChildNode,
+  TextNode,
   VNodeCall,
 } from "./ast.js";
 import { CodegenContext, CodegenOptions, CodegenResult } from "./options.js";
@@ -172,7 +173,7 @@ export function generate(
 
   deindent();
   push(`}`);
-  // console.log(context.code);
+  console.log(context.code);
   return {
     ast,
     code: context.code,
@@ -229,14 +230,21 @@ function genFunctionPreamble(ast: RootNode, context: CodegenContext) {
   push(`return `);
 }
 
+/**
+ * 生成靜態變數
+ * const _hoisted_1 =
+ */
 function genHoists(hoists: (JSChildNode | null)[], context: CodegenContext) {
   if (!hoists.length) return;
   context.pure = true; //hoisting 過程中標記生成的代碼為純函數
   const { push, newline } = context;
   newline();
 
+  console.log("context", context);
+
   for (let i = 0; i < hoists.length; i++) {
     const exp = hoists[i];
+    console.log("exp", exp);
     if (exp) {
       push(`const _hoisted_${i + 1} = `);
       genNode(exp, context);
@@ -247,6 +255,40 @@ function genHoists(hoists: (JSChildNode | null)[], context: CodegenContext) {
   context.pure = false;
 }
 
+/**
+ * 生成hoist變數內容
+ * { class:"className" }
+ */
+function genObjectExpression(node: ObjectExpression, context: CodegenContext) {
+  const { push, indent, deindent, newline } = context;
+  const { properties } = node;
+  if (!properties.length) {
+    push(`{}`, NewlineType.None, node);
+    return;
+  }
+  const multilines = properties.length > 1;
+  push(multilines ? `{` : `{ `);
+
+  for (let i = 0; i < properties.length; i++) {
+    const { key, value } = properties[i];
+    genExpressionAsPropertyKey(key, context); //key: class
+    push(":");
+    genNode(value, context); // value:"className"
+    if (i < properties.length - 1) {
+      // will only reach this if it's multilines
+      push(`,`);
+      newline();
+    }
+  }
+  push(multilines ? `}` : ` }`);
+}
+
+/**
+ * 生成物件屬性的鍵（key），直接輸出到 render 代碼中。
+ *
+ * - 若 key 是靜態字串，則可能不加引號（符合 JS 識別符規則）。
+ * - 若 key 為數字或不符合 JS 識別符規則，則轉換為 JSON 字串（例如 `123` 會變為 `"123"`）。
+ */
 function genExpressionAsPropertyKey(
   node: ExpressionNode,
   context: CodegenContext
@@ -263,33 +305,12 @@ function genExpressionAsPropertyKey(
   }
 }
 
-function genObjectExpression(node: ObjectExpression, context: CodegenContext) {
-  const { push, indent, deindent, newline } = context;
-  const { properties } = node;
-  if (!properties.length) {
-    push(`{}`, NewlineType.None, node);
-    return;
-  }
-  const multilines = properties.length > 1;
-
-  push(multilines ? `{` : `{ `);
-
-  for (let i = 0; i < properties.length; i++) {
-    const { key, value } = properties[i];
-    //key
-    genExpressionAsPropertyKey(key, context);
-    push(":");
-    // value
-    genNode(value, context);
-    if (i < properties.length - 1) {
-      // will only reach this if it's multilines
-      push(`,`);
-      newline();
-    }
-  }
-  push(multilines ? `}` : ` }`);
-}
-
+/**
+ * 生成物件屬性的值（value），直接輸出到 render 代碼中。
+ *
+ * - 若值是靜態字串，則轉換為 JSON 字串（確保輸出格式符合 JS 語法）。
+ * - 若值是動態表達式，則直接輸出原內容。
+ */
 function genExpression(node: SimpleExpressionNode, context: CodegenContext) {
   const { content, isStatic } = node;
   context.push(
@@ -314,7 +335,7 @@ function genVNodeCall(node: VNodeCall, context: CodegenContext) {
   } = node;
 
   let patchFlagString = String(patchFlag); //1
-  // console.log("patchFlagString", patchFlagString);
+
   if (isBlock) {
     push(`(${helper(OPEN_BLOCK)}(${disableTracking ? `true` : ``}), `);
   }
@@ -324,6 +345,7 @@ function genVNodeCall(node: VNodeCall, context: CodegenContext) {
     : getVNodeHelper(context.inSSR, isComponent);
 
   push(helper(callHelper) + `(`, NewlineType.None, node);
+
   genNodeList(
     genNullableArgs([tag, props, children, patchFlagString, dynamicProps]),
     context
@@ -351,11 +373,11 @@ function genNodeList(
   const { push, newline } = context;
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
-    // console.log("genNodeList", node);
 
     if (isString(node)) {
       push(node, NewlineType.Unknown);
     } else if (isArray(node)) {
+      genNodeListAsArray(node, context);
     } else {
       genNode(node, context);
     }
@@ -370,6 +392,26 @@ function genNodeList(
   }
 }
 
+function genNodeListAsArray(
+  nodes: (string | CodegenNode | TemplateChildNode[])[],
+  context: CodegenContext
+) {
+  const multilines = nodes.length > 3;
+
+  context.push(`[`);
+  multilines && context.indent();
+  genNodeList(nodes, context, multilines);
+  multilines && context.deindent();
+  context.push(`]`);
+}
+
+function genText(
+  node: TextNode | SimpleExpressionNode,
+  context: CodegenContext
+) {
+  context.push(JSON.stringify(node.content), NewlineType.Unknown, node);
+}
+
 function genNode(node: CodegenNode | symbol | string, context: CodegenContext) {
   if (isString(node)) {
     context.push(node, NewlineType.Unknown);
@@ -379,9 +421,14 @@ function genNode(node: CodegenNode | symbol | string, context: CodegenContext) {
     context.push(context.helper(node));
     return;
   }
-  // console.log("genNode", node);
 
   switch (node.type) {
+    case NodeTypes.ELEMENT:
+      genNode(node.codegenNode!, context);
+      break;
+    case NodeTypes.TEXT:
+      genText(node, context);
+      break;
     case NodeTypes.SIMPLE_EXPRESSION:
       genExpression(node, context);
       break;

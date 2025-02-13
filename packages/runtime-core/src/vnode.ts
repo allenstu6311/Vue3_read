@@ -9,7 +9,12 @@ import {
 } from "./component.js";
 import { NULL_DYNAMIC_COMPONENT } from "./helpers/resolveAssets.js";
 import { RendererElement, RendererNode } from "./renderer.js";
-import { isFunction, isObject, isString } from "../../shared/src/general.js";
+import {
+  isArray,
+  isFunction,
+  isObject,
+  isString,
+} from "../../shared/src/general.js";
 import {
   currentRenderingInstance,
   currentScopeId,
@@ -384,7 +389,9 @@ function _createVNode(
 }
 
 export function normalizeVNode(child: VNodeChild): VNode {
-  if (isVNode(child)) {
+  if (isArray(child)) {
+    console.log("isArray");
+  } else if (isVNode(child)) {
     // already vnode, this should be the most common since compiled templates
     // always produce all-vnode children arrays
     return cloneIfMounted(child);
@@ -394,6 +401,8 @@ export function normalizeVNode(child: VNodeChild): VNode {
 
 // optimized normalization for template-compiled render fns
 export function cloneIfMounted(child: VNode): VNode {
+  console.log("cloneIfMounted", child);
+
   return (child.el === null && child.patchFlag !== PatchFlags.CACHED) ||
     child.memo
     ? child
@@ -406,6 +415,8 @@ export function cloneVNode<T, U>(
   mergeRef = false,
   cloneTransition = false
 ): VNode<T, U> {
+  console.log("cloneVNode");
+
   const { props, ref, patchFlag, children, transition } = vnode;
   const mergedProps = props;
   const cloned: VNode<T, U> = {

@@ -31,6 +31,7 @@ export function renderComponentRoot(
     const thisProxy = proxyToUse;
 
     // debugger;
+
     // 生成vnode
     result = normalizeVNode(
       render!.call(

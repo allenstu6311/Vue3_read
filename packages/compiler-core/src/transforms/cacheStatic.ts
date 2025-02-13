@@ -12,10 +12,13 @@ import {
   TemplateChildNode,
   TemplateNode,
   TextCallNode,
+  VNodeCall,
 } from "../ast.js";
 import { TransformContext } from "../transform.js";
 
 export function cacheStatic(root: RootNode, context: TransformContext): void {
+  console.log("cacheStatic");
+
   walk(
     root,
     undefined,
@@ -45,15 +48,22 @@ function walk(
       child.tagType === ElementTypes.ELEMENT
     ) {
       /**
-       * 不能提升代表為非靜態節點
+       * 動態 = 0
+       * 可緩存 = 3
        */
       const constantType = doNotHoistNode
         ? ConstantTypes.NOT_CONSTANT
         : getConstantType(child, context);
 
+      // >0 都算靜態節點
       if (constantType > ConstantTypes.NOT_CONSTANT) {
-        // 建立快取
+        /**
+         * 靜態節點只有此類型需要緩存
+         */
         if (constantType >= ConstantTypes.CAN_CACHE) {
+          // 設置為快取標籤
+          (child.codegenNode as VNodeCall).patchFlag = PatchFlags.CACHED;
+          // 建立快取
           toCache.push(child);
           continue;
         }
@@ -61,6 +71,7 @@ function walk(
         const codegenNode = child.codegenNode!;
         if (codegenNode.type === NodeTypes.VNODE_CALL) {
           const flag = codegenNode.patchFlag;
+
           if (
             (flag === undefined ||
               flag === PatchFlags.NEED_PATCH ||
@@ -69,6 +80,7 @@ function walk(
               ConstantTypes.CAN_CACHE
           ) {
             const props = getNodeProps(child);
+
             if (props) {
               codegenNode.props = context.hoist(props);
             }
@@ -90,8 +102,14 @@ function walk(
       walk(child, node, context, false, inFor);
     }
   }
+
+  let cachedAsArray = false;
+  console.log("toCache", toCache);
 }
 
+/**
+ * 利用NodeType返回ConstantTypes
+ */
 export function getConstantType(
   node: TemplateChildNode | SimpleExpressionNode | CacheExpression,
   context: TransformContext
@@ -135,6 +153,8 @@ export function getConstantType(
     case NodeTypes.TEXT:
     case NodeTypes.COMMENT:
       return ConstantTypes.CAN_STRINGIFY;
+
+    // 遞迴找到最底層
     case NodeTypes.INTERPOLATION:
     case NodeTypes.TEXT_CALL:
       return getConstantType(node.content, context);

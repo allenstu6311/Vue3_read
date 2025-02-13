@@ -1,6 +1,6 @@
 tsc -w 並開啟根目錄下的 index.html
 
-# 目前看到   補齊cloneIfMounted參數:el, ctx, shapeFlag   補齊_Vue方法
+# 看懂isBlock toCache原理
 
 #需要了解
 

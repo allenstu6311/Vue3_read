@@ -207,8 +207,8 @@ function onText(content: string, start: number, end: number) {
   if (tag !== "script" && tag !== "style" && content.includes("&")) {
     content = currentOptions.decodeEntities!(content, false);
   }
-  const parent = stack[0] || currentRoot;
 
+  const parent = stack[0] || currentRoot;
   parent.children.push({
     type: NodeTypes.TEXT,
     content,

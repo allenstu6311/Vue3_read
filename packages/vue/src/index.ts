@@ -32,7 +32,7 @@ function compileToFunction(
     options
   );
 
-  const { code } = compile(template);
+  const { code } = compile(template, opts);
   // console.log("code", code);
 
   const render = new Function("Vue", code)(runtimeDom);

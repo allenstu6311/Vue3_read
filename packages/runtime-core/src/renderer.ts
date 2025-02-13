@@ -8,8 +8,13 @@ import {
 } from "./component.js";
 import { SuspenseBoundary } from "./components/Suspense.js";
 import { createHydrationFunctions } from "./hydration.js";
-import type { VNode, VNodeHook, VNodeProps } from "./vnode.js";
-import { Text } from "./vnode.js";
+import type {
+  VNode,
+  VNodeArrayChildren,
+  VNodeHook,
+  VNodeProps,
+} from "./vnode.js";
+import { cloneIfMounted, Fragment, normalizeVNode, Text } from "./vnode.js";
 import { ReactiveEffect } from "../../reactivity/src/effect.js";
 import { SchedulerJob } from "./scheduler.js";
 import { isAsyncWrapper } from "./apiAsyncComponent.js";
@@ -22,6 +27,18 @@ import { renderComponentRoot } from "./componentRenderUtils.js";
 export interface RendererNode {
   [key: string | symbol]: any;
 }
+
+type MountChildrenFn = (
+  children: VNodeArrayChildren,
+  container: RendererElement,
+  anchor: RendererNode | null,
+  parentComponent: ComponentInternalInstance | null,
+  parentSuspense: SuspenseBoundary | null,
+  namespace: ElementNamespace,
+  slotScopeIds: string[] | null,
+  optimized: boolean,
+  start?: number
+) => void;
 
 export interface RendererElement extends RendererNode {}
 
@@ -179,13 +196,25 @@ function baseCreateRenderer(
     }
 
     const { type, ref, shapeFlag } = n2;
-    // console.log("type", type);
-    // console.log("shapeFlag", shapeFlag);
+    console.log("type", type);
+    console.log("shapeFlag", shapeFlag);
     switch (type) {
       case Text:
         processText(n1, n2, container, anchor);
         break;
-
+      case Fragment:
+        processFragment(
+          n1,
+          n2,
+          container,
+          anchor,
+          parentComponent,
+          parentSuspense,
+          namespace,
+          slotScopeIds,
+          optimized
+        );
+        break;
       default:
         if (shapeFlag & ShapeFlags.ELEMENT) {
           processElement(
@@ -217,15 +246,14 @@ function baseCreateRenderer(
   };
 
   const processText: ProcessTextOrCommentFn = (n1, n2, container, anchor) => {
-    console.log(n1);
-
-    if (n1 == null) {
-      hostInsert(
-        (n2.el = hostCreateText(n2.children as string)),
-        container,
-        anchor
-      );
-    }
+    // console.log(n1);
+    // if (n1 == null) {
+    //   hostInsert(
+    //     (n2.el = hostCreateText(n2.children as string)),
+    //     container,
+    //     anchor
+    //   );
+    // }
   };
 
   const processElement = (
@@ -276,8 +304,6 @@ function baseCreateRenderer(
     let el: RendererElement;
     let vnodeHook: VNodeHook | undefined | null;
     const { props, shapeFlag, transition, dirs } = vnode;
-    // console.log("shapeFlag", shapeFlag);
-
     el = vnode.el = hostCreateElement(
       vnode.type as string,
       namespace,
@@ -326,7 +352,6 @@ function baseCreateRenderer(
     optimized: boolean
   ) => {
     const el = (n2.el = n1.el!);
-    // console.log("el", el);
   };
 
   const processComponent = (
@@ -355,6 +380,72 @@ function baseCreateRenderer(
       }
     } else {
       // 更新vnode邏輯
+    }
+  };
+
+  const processFragment = (
+    n1: VNode | null,
+    n2: VNode,
+    container: RendererElement,
+    anchor: RendererNode | null,
+    parentComponent: ComponentInternalInstance | null,
+    parentSuspense: SuspenseBoundary | null,
+    namespace: ElementNamespace,
+    slotScopeIds: string[] | null,
+    optimized: boolean
+  ) => {
+    const fragmentStartAnchor = (n2.el = n1 ? n1.el : hostCreateText(""))!;
+    const fragmentEndAnchor = (n2.anchor = n1
+      ? n1.anchor
+      : hostCreateText(""))!;
+
+    let { patchFlag, dynamicChildren, slotScopeIds: fragmentSlotScopeIds } = n2;
+    if (n1 == null) {
+      /**
+       * <fragment> #app </fragment>
+       * 讓vue3支援多節點
+       */
+      hostInsert(fragmentStartAnchor, container, anchor);
+      hostInsert(fragmentEndAnchor, container, anchor);
+      mountChildren(
+        (n2.children || []) as VNodeArrayChildren,
+        container,
+        fragmentEndAnchor,
+        parentComponent,
+        parentSuspense,
+        namespace,
+        slotScopeIds,
+        optimized
+      );
+    }
+  };
+
+  const mountChildren: MountChildrenFn = (
+    children,
+    container,
+    anchor,
+    parentComponent,
+    parentSuspense,
+    namespace: ElementNamespace,
+    slotScopeIds,
+    optimized,
+    start = 0
+  ) => {
+    for (let i = start; i < children.length; i++) {
+      const child = (children[i] = optimized // false
+        ? cloneIfMounted(children[i] as VNode)
+        : normalizeVNode(children[i]));
+      patch(
+        null,
+        child,
+        container,
+        anchor,
+        parentComponent,
+        parentSuspense,
+        namespace,
+        slotScopeIds,
+        optimized
+      );
     }
   };
 
@@ -402,11 +493,11 @@ function baseCreateRenderer(
   ) => {
     const componentUpdateFn = () => {
       if (!instance.isMounted) {
-        console.log("componentUpdateFn");
         let vnodeHook: VNodeHook | null | undefined;
         const { el, props } = initialVNode;
         const { bm, m, parent, root, type } = instance;
         const isAsyncWrapperVNode = isAsyncWrapper(initialVNode);
+
         const subTree = (instance.subTree = renderComponentRoot(instance));
         console.log("subTree", subTree);
         patch(

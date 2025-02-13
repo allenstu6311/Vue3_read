@@ -44,7 +44,6 @@ export function baseCompile(
       ),
     })
   );
-  // console.log("ast", ast);
-
+  console.log("ast", ast);
   return generate(ast, resolvedOptions);
 }

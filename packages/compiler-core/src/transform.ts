@@ -6,11 +6,13 @@ import {
   isString,
   NOOP,
 } from "../../shared/src/general.js";
+import { PatchFlags } from "../../shared/src/patchFlags.js";
 import {
   ArrayExpression,
   CacheExpression,
   ConstantTypes,
   createSimpleExpression,
+  createVNodeCall,
   DirectiveNode,
   ElementNode,
   ExpressionNode,
@@ -29,7 +31,7 @@ import {
 import { CompilerCompatOptions } from "./compact/compatConfig.js";
 import { defaultOnError, defaultOnWarn } from "./errors.js";
 import { TransformOptions } from "./options.js";
-import { OPEN_BLOCK, TO_DISPLAY_STRING } from "./runtimeHelpers.js";
+import { FRAGMENT, OPEN_BLOCK, TO_DISPLAY_STRING } from "./runtimeHelpers.js";
 import { cacheStatic, isSingleElementRoot } from "./transforms/cacheStatic.js";
 
 export type NodeTransform = (
@@ -80,7 +82,11 @@ export interface TransformContext
   addIdentifiers(exp: ExpressionNode | string): void;
   removeIdentifiers(exp: ExpressionNode | string): void;
   /**
-   * 提升
+   * 將靜態內容進行提升
+   * 例:
+   * const _hoisted_1 = { class:"className" }
+   * _createElementVNode("div", _hoisted_1, _toDisplayString(test), 1)
+   * 不會再重複渲染
    */
   hoist(exp: string | JSChildNode | ArrayExpression): SimpleExpressionNode;
   cache(exp: JSChildNode, isVNode?: boolean): CacheExpression;
@@ -264,7 +270,6 @@ function createRootCodegen(root: RootNode, context: TransformContext) {
     const child = children[0];
 
     if (isSingleElementRoot(root, child) && child.codegenNode) {
-      // console.log("root", root);
       const codegenNode = child.codegenNode;
       if (codegenNode.type === NodeTypes.VNODE_CALL) {
         convertToBlock(codegenNode, context);
@@ -272,6 +277,21 @@ function createRootCodegen(root: RootNode, context: TransformContext) {
 
       root.codegenNode = codegenNode;
     }
+  } else if (children.length > 1) {
+    let patchFlag = PatchFlags.STABLE_FRAGMENT;
+    //codegenNode.children 會變成陣列
+    root.codegenNode = createVNodeCall(
+      context,
+      helper(FRAGMENT), // 多個子節點
+      undefined,
+      root.children,
+      patchFlag,
+      undefined,
+      undefined,
+      true,
+      undefined,
+      false /* isComponent */
+    );
   }
 }
 
