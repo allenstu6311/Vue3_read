@@ -80,3 +80,5 @@ export const isReservedProp: (key: string) => boolean = /*@__PURE__*/ makeMap(
     "onVnodeBeforeUpdate,onVnodeUpdated," +
     "onVnodeBeforeUnmount,onVnodeUnmounted"
 );
+
+export const EMPTY_ARR: readonly never[] = false ? Object.freeze([]) : [];

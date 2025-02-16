@@ -1,11 +1,11 @@
 tsc -w 並開啟根目錄下的 index.html
 
-# 看懂isBlock toCache原理
+1.被塊取得靜態節點會有不同的渲染代碼 
+2.寫一個method去修改資料
 
 #需要了解
 
 (ts)
-ShadowRoot
 HostNode
 HostElement
 ElementNamespace
@@ -39,6 +39,9 @@ type: NodeTypes.COMPOUND_EXPRESSION;
     )[];
     }
 
-# transform
+
 
 https://juejin.cn/post/7153889335232692255
+
+# isBlock(如何與Block Tree互動)
+# context.cache(目前不知道cache用在哪)

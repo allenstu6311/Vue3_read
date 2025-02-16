@@ -11,6 +11,8 @@ import {
   ArrayExpression,
   CacheExpression,
   ConstantTypes,
+  convertToBlock,
+  createCacheExpression,
   createSimpleExpression,
   createVNodeCall,
   DirectiveNode,
@@ -89,6 +91,9 @@ export interface TransformContext
    * 不會再重複渲染
    */
   hoist(exp: string | JSChildNode | ArrayExpression): SimpleExpressionNode;
+  /**
+   * 緩存靜態資源
+   */
   cache(exp: JSChildNode, isVNode?: boolean): CacheExpression;
   constantCache: WeakMap<TemplateChildNode, ConstantTypes>;
 
@@ -235,7 +240,16 @@ export function createTransformContext(
       identifier.hoisted = exp;
       return identifier;
     },
-    cache(): any {},
+    cache(exp, isVNode = false) {
+      const cacheExp = createCacheExpression(
+        context.cached.length,
+        exp,
+        isVNode
+      );
+
+      context.cached.push(cacheExp);
+      return cacheExp;
+    },
   };
 
   return context;
@@ -250,6 +264,7 @@ export function transform(root: RootNode, options: TransformOptions): void {
     // 快取靜態節點
     cacheStatic(root, context);
   }
+
   createRootCodegen(root, context);
 
   // finalize meta information
@@ -282,13 +297,13 @@ function createRootCodegen(root: RootNode, context: TransformContext) {
     //codegenNode.children 會變成陣列
     root.codegenNode = createVNodeCall(
       context,
-      helper(FRAGMENT), // 多個子節點
+      helper(FRAGMENT), // 多個根節點
       undefined,
       root.children,
       patchFlag,
       undefined,
       undefined,
-      true,
+      true, // isBlock = true
       undefined,
       false /* isComponent */
     );
@@ -366,17 +381,5 @@ export function traverseNode(
   while (i--) {
     // 執行transform方法
     exitFns[i]();
-  }
-}
-
-export function convertToBlock(
-  node: VNodeCall,
-  { helper, removeHelper, inSSR }: TransformContext
-): void {
-  if (!node.isBlock) {
-    node.isBlock = true;
-    removeHelper(getVNodeHelper(inSSR, node.isComponent));
-    helper(OPEN_BLOCK);
-    helper(getVNodeBlockHelper(inSSR, node.isComponent));
   }
 }

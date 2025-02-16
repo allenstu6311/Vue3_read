@@ -17,8 +17,6 @@ import {
 import { TransformContext } from "../transform.js";
 
 export function cacheStatic(root: RootNode, context: TransformContext): void {
-  console.log("cacheStatic");
-
   walk(
     root,
     undefined,
@@ -104,7 +102,15 @@ function walk(
   }
 
   let cachedAsArray = false;
-  console.log("toCache", toCache);
+
+  if (toCache.length === children.length && node.type === NodeTypes.ELEMENT) {
+  }
+
+  if (!cachedAsArray) {
+    for (const child of toCache) {
+      child.codegenNode = context.cache(child.codegenNode!);
+    }
+  }
 }
 
 /**

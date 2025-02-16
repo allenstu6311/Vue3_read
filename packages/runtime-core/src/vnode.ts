@@ -10,6 +10,7 @@ import {
 import { NULL_DYNAMIC_COMPONENT } from "./helpers/resolveAssets.js";
 import { RendererElement, RendererNode } from "./renderer.js";
 import {
+  EMPTY_ARR,
   isArray,
   isFunction,
   isObject,
@@ -240,17 +241,19 @@ export function closeBlock(): void {
   currentBlock = blockStack[blockStack.length - 1] || null;
 }
 
+export let isBlockTreeEnabled = 1;
+
 function setupBlock(vnode: VNode) {
   // save current block children on the block vnode
-  // vnode.dynamicChildren =
-  //   isBlockTreeEnabled > 0 ? currentBlock || (EMPTY_ARR as any) : null
-  // close block
+  vnode.dynamicChildren =
+    isBlockTreeEnabled > 0 ? currentBlock || (EMPTY_ARR as any) : null;
+
   closeBlock();
   // a block is always going to be patched, so track it as a child of its
   // parent block
-  // if (isBlockTreeEnabled > 0 && currentBlock) {
-  //   currentBlock.push(vnode)
-  // }
+  if (isBlockTreeEnabled > 0 && currentBlock) {
+    currentBlock.push(vnode);
+  }
   return vnode;
 }
 

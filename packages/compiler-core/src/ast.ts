@@ -345,7 +345,7 @@ export interface BaseElementNode extends Node {
 
 export interface PlainElementNode extends BaseElementNode {
   tagType: ElementTypes.ELEMENT;
-  codegenNode: undefined | VNodeCall | SimpleExpressionNode;
+  codegenNode: undefined | VNodeCall | SimpleExpressionNode | CacheExpression;
   ssrCodegenNode?: TemplateLiteral;
 }
 
@@ -551,6 +551,41 @@ export function createObjectProperty(
   };
 }
 
+/**
+ * 回傳createElementBlock的code
+ * @param ssr
+ * @param isComponent
+ * @returns
+ */
+export function getVNodeBlockHelper(
+  ssr: boolean,
+  isComponent: boolean
+): typeof CREATE_BLOCK | typeof CREATE_ELEMENT_BLOCK {
+  return ssr || isComponent ? CREATE_BLOCK : CREATE_ELEMENT_BLOCK;
+}
+
+/**
+ * 回傳createElementVNode的code
+ */
+export function getVNodeHelper(
+  ssr: boolean,
+  isComponent: boolean
+): typeof CREATE_VNODE | typeof CREATE_ELEMENT_VNODE {
+  return ssr || isComponent ? CREATE_VNODE : CREATE_ELEMENT_VNODE;
+}
+
+export function convertToBlock(
+  node: VNodeCall,
+  { helper, removeHelper, inSSR }: TransformContext
+): void {
+  if (!node.isBlock) {
+    node.isBlock = true;
+    removeHelper(getVNodeHelper(inSSR, node.isComponent));
+    helper(OPEN_BLOCK);
+    helper(getVNodeBlockHelper(inSSR, node.isComponent));
+  }
+}
+
 export function createVNodeCall(
   context: TransformContext | null,
   tag: VNodeCall["tag"],
@@ -591,32 +626,6 @@ export function createVNodeCall(
   };
 }
 
-export function getVNodeBlockHelper(
-  ssr: boolean,
-  isComponent: boolean
-): typeof CREATE_BLOCK | typeof CREATE_ELEMENT_BLOCK {
-  return ssr || isComponent ? CREATE_BLOCK : CREATE_ELEMENT_BLOCK;
-}
-
-export function getVNodeHelper(
-  ssr: boolean,
-  isComponent: boolean
-): typeof CREATE_VNODE | typeof CREATE_ELEMENT_VNODE {
-  return ssr || isComponent ? CREATE_VNODE : CREATE_ELEMENT_VNODE;
-}
-
-export function convertToBlock(
-  node: VNodeCall,
-  { helper, removeHelper, inSSR }: TransformContext
-): void {
-  if (!node.isBlock) {
-    node.isBlock = true;
-    removeHelper(getVNodeHelper(inSSR, node.isComponent));
-    helper(OPEN_BLOCK);
-    helper(getVNodeBlockHelper(inSSR, node.isComponent));
-  }
-}
-
 export function createCallExpression<T extends CallExpression["callee"]>(
   callee: T,
   args: CallExpression["arguments"] = [],
@@ -651,5 +660,23 @@ export function createSimpleExpression(
     content,
     isStatic,
     constType: isStatic ? ConstantTypes.CAN_STRINGIFY : constType,
+  };
+}
+
+/**
+ * 返回緩存的資源格式
+ */
+export function createCacheExpression(
+  index: number,
+  value: JSChildNode,
+  needPauseTracking: boolean = false
+): CacheExpression {
+  return {
+    type: NodeTypes.JS_CACHE_EXPRESSION,
+    index,
+    value,
+    needPauseTracking: needPauseTracking,
+    needArraySpread: false,
+    loc: locStub,
   };
 }
