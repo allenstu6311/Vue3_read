@@ -393,7 +393,6 @@ function _createVNode(
 
 export function normalizeVNode(child: VNodeChild): VNode {
   if (isArray(child)) {
-    console.log("isArray");
   } else if (isVNode(child)) {
     // already vnode, this should be the most common since compiled templates
     // always produce all-vnode children arrays
@@ -404,8 +403,6 @@ export function normalizeVNode(child: VNodeChild): VNode {
 
 // optimized normalization for template-compiled render fns
 export function cloneIfMounted(child: VNode): VNode {
-  console.log("cloneIfMounted", child);
-
   return (child.el === null && child.patchFlag !== PatchFlags.CACHED) ||
     child.memo
     ? child

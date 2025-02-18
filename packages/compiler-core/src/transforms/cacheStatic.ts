@@ -107,6 +107,7 @@ function walk(
   }
 
   if (!cachedAsArray) {
+    // 生成快取節點
     for (const child of toCache) {
       child.codegenNode = context.cache(child.codegenNode!);
     }

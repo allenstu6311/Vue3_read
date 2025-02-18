@@ -36,7 +36,7 @@ export enum NodeTypes {
    */
   COMMENT,
   /**
-   * 簡單表達式節點，對應靜態或動態的單個表達式
+   * 簡單表達式節點，對應靜態或動態的單個表達式:class="className"
    */
   SIMPLE_EXPRESSION,
   /**
@@ -80,7 +80,7 @@ export enum NodeTypes {
    */
   JS_CALL_EXPRESSION,
   /**
-   * JavaScript對象表達式，對應代碼中的對象
+   * JavaScript對象表達式，對應代碼中的對象 :class="{color:'red'}"
    */
   JS_OBJECT_EXPRESSION,
   /**

@@ -1,5 +1,6 @@
 import { isArray, isString, isSymbol } from "../../shared/src/general.js";
 import {
+  CacheExpression,
   CallExpression,
   ExpressionNode,
   getVNodeBlockHelper,
@@ -412,6 +413,19 @@ function genText(
   context.push(JSON.stringify(node.content), NewlineType.Unknown, node);
 }
 
+/**
+ * 合成快取內容
+ */
+function genCacheExpression(node: CacheExpression, context: CodegenContext) {
+  const { push, helper, indent, deindent, newline } = context;
+  const { needPauseTracking, needArraySpread } = node;
+
+  push(`_cache[${node.index}] || (`);
+  push(`_cache[${node.index}] = `);
+  genNode(node.value, context);
+  push(`)`);
+}
+
 function genNode(node: CodegenNode | symbol | string, context: CodegenContext) {
   if (isString(node)) {
     context.push(node, NewlineType.Unknown);
@@ -440,6 +454,9 @@ function genNode(node: CodegenNode | symbol | string, context: CodegenContext) {
       break;
     case NodeTypes.VNODE_CALL:
       genVNodeCall(node, context);
+      break;
+    case NodeTypes.JS_CACHE_EXPRESSION:
+      genCacheExpression(node, context);
       break;
     default:
       break;
