@@ -510,6 +510,10 @@ export default class Tokenizer {
 
   constructor(private readonly stack: any[], private readonly cbs: Callbacks) {}
 
+  private peek() {
+    return this.buffer.charCodeAt(this.index + 1);
+  }
+
   /**
    * 取得表達式開始與結束的位置不包含"{{}}"
    * @param index 代碼列號
@@ -654,10 +658,23 @@ export default class Tokenizer {
   }
   /**
    * 更新狀態與index(即將開始解析屬性)
+   * @、:、#
    */
   private handleAttrStart(c: number) {
-    this.state = State.InAttrName;
-    this.sectionStart = this.index;
+    if (c === CharCodes.LowerV && this.peek() === CharCodes.Dash) {
+    } else if (
+      c === CharCodes.Dot ||
+      c === CharCodes.Colon ||
+      c === CharCodes.At ||
+      c === CharCodes.Number
+    ) {
+      this.cbs.ondirname(this.index, this.index + 1);
+      this.state = State.InDirArg;
+      this.sectionStart = this.index + 1;
+    } else {
+      this.state = State.InAttrName;
+      this.sectionStart = this.index;
+    }
   }
 
   /**
@@ -777,6 +794,19 @@ export default class Tokenizer {
   }
 
   /**
+   * 處理"@"之後，例:click, input
+   * @param c
+   */
+  private stateInDirArg(c: number): void {
+    if (c === CharCodes.Eq || isEndOfTagSection(c)) {
+      this.cbs.ondirarg(this.sectionStart, this.index);
+      this.handleAttrNameEnd(c);
+    } else if (c === CharCodes.LeftSquare) {
+    } else if (c === CharCodes.Dot) {
+    }
+  }
+
+  /**
    * 模板解析
    * @param input template
    */
@@ -793,7 +823,7 @@ export default class Tokenizer {
       // console.log("font", this.buffer.charAt(this.index));
       switch (this.state) {
         case State.Text: {
-          //1
+          //1 預設
           this.stateText(c);
           break;
         }
@@ -850,6 +880,11 @@ export default class Tokenizer {
         case State.InClosingTagName: {
           //9
           this.stateInClosingTagName(c);
+          break;
+        }
+        // 14
+        case State.InDirArg: {
+          this.stateInDirArg(c);
           break;
         }
       }

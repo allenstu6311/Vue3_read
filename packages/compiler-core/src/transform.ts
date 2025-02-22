@@ -294,6 +294,8 @@ function createRootCodegen(root: RootNode, context: TransformContext) {
     }
   } else if (children.length > 1) {
     let patchFlag = PatchFlags.STABLE_FRAGMENT;
+    console.log("patchFlag", patchFlag);
+
     //codegenNode.children 會變成陣列
     root.codegenNode = createVNodeCall(
       context,

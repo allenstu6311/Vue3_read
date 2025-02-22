@@ -64,6 +64,7 @@ let currentAttrStartIndex = -1;
 let currentAttrEndIndex = -1;
 const stack: ElementNode[] = [];
 let inPre = 0;
+let inVPre = false;
 
 const tokenizer = new Tokenizer(stack, {
   ontext(start, end) {
@@ -169,7 +170,7 @@ const tokenizer = new Tokenizer(stack, {
     // plain attribute
     currentProp = {
       type: NodeTypes.ATTRIBUTE,
-      name: getSlice(start, end),
+      name: getSlice(start, end), //class, id...
       nameLoc: getLoc(start, end),
       value: undefined,
       loc: getLoc(start),
@@ -189,8 +190,44 @@ const tokenizer = new Tokenizer(stack, {
     currentAttrEndIndex = end;
   },
   onselfclosingtag(end) {},
-  ondirname(start, end) {},
-  ondirarg(start, end) {},
+  ondirname(start, end) {
+    const raw = getSlice(start, end);
+    const name =
+      raw === "." || raw === ":"
+        ? "bind"
+        : raw === "@"
+        ? "on"
+        : raw === "#"
+        ? "slot"
+        : raw.slice(2);
+    if (inVPre || name === "") {
+    } else {
+      currentProp = {
+        type: NodeTypes.DIRECTIVE,
+        name,
+        rawName: raw,
+        exp: undefined,
+        arg: undefined,
+        modifiers: raw === "." ? [createSimpleExpression("prop")] : [],
+        loc: getLoc(start),
+      };
+    }
+  },
+  ondirarg(start, end) {
+    if (start === end) return;
+    const arg = getSlice(start, end); //click, input
+    if (inVPre) {
+    } else {
+      const isStatic = arg[0] !== `[`;
+
+      (currentProp as DirectiveNode).arg = createExp(
+        isStatic ? arg : arg.slice(1, -1),
+        isStatic,
+        getLoc(start, end),
+        isStatic ? ConstantTypes.CAN_STRINGIFY : ConstantTypes.NOT_CONSTANT
+      );
+    }
+  },
   ondirmodifier(start, end) {},
   oncdata(start, end) {},
   onprocessinginstruction(start, end) {},

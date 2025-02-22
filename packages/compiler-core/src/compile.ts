@@ -29,7 +29,7 @@ export function baseCompile(
   // console.log('ast',ast);
   const [nodeTransforms, directiveTransforms] =
     getBaseTransformPreset(prefixIdentifiers);
-
+  console.log("ast", ast);
   transform(
     ast,
     extend({}, resolvedOptions, {
@@ -44,6 +44,6 @@ export function baseCompile(
       ),
     })
   );
-  console.log("ast", ast);
+
   return generate(ast, resolvedOptions);
 }

@@ -9,6 +9,7 @@
     <div id="app">
       <div class="className">{{test}}</div>
       <div class="static">static</div>
+      <button @click="change">add</button>
     </div>
 
       <script
@@ -21,11 +22,16 @@
         // debugger;
         const app = createApp({
           setup() {
-            const test = ref("123");
+            const test = ref(100);
+
+            function change(){              
+              test.value++
+            }
 
 
             return {
               test,
+              change
             };
           },
         }).mount("#app");

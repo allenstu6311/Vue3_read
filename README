@@ -1,7 +1,6 @@
 tsc -w 並開啟根目錄下的 index.html
 
-1.被塊取得靜態節點會有不同的渲染代碼 
-2.寫一個method去修改資料
+2.寫一個method去修改資料看到ondirname(transformElement)
 
 #需要了解
 

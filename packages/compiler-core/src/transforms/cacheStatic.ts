@@ -125,6 +125,10 @@ export function getConstantType(
 
   switch (node.type) {
     case NodeTypes.ELEMENT:
+      // if (node.tag === "button") {
+      //   debugger;
+      // }
+
       if (node.tagType !== ElementTypes.ELEMENT) {
         return ConstantTypes.NOT_CONSTANT;
       }
