@@ -241,11 +241,8 @@ function genHoists(hoists: (JSChildNode | null)[], context: CodegenContext) {
   const { push, newline } = context;
   newline();
 
-  console.log("context", context);
-
   for (let i = 0; i < hoists.length; i++) {
     const exp = hoists[i];
-    console.log("exp", exp);
     if (exp) {
       push(`const _hoisted_${i + 1} = `);
       genNode(exp, context);

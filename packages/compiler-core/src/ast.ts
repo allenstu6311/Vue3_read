@@ -53,6 +53,7 @@ export enum NodeTypes {
   DIRECTIVE,
   /**
    * 複合表達式節點，對應多個表達式組合的情況
+   * :class="isActive ? 'active' : 'inactive'"
    */
   COMPOUND_EXPRESSION,
   /**
@@ -270,6 +271,12 @@ export interface CompoundExpressionNode extends Node {
     | string
     | symbol
   )[];
+  /**
+   * an expression parsed as the params of a function will track
+   * the identifiers declared inside the function body.
+   */
+  identifiers?: string[];
+  isHandlerKey?: boolean;
 }
 
 export interface ForParseResult {

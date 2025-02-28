@@ -1,5 +1,8 @@
 import { JSChildNode, NodeTypes, SimpleExpressionNode } from "./ast.js";
 
+/**
+ * :class="className" || class="className"
+ */
 export const isStaticExp = (p: JSChildNode): p is SimpleExpressionNode =>
   p.type === NodeTypes.SIMPLE_EXPRESSION && p.isStatic;
 

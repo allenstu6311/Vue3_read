@@ -82,3 +82,21 @@ export const isReservedProp: (key: string) => boolean = /*@__PURE__*/ makeMap(
 );
 
 export const EMPTY_ARR: readonly never[] = false ? Object.freeze([]) : [];
+
+export const toHandlerKey: <T extends string>(
+  str: T
+) => T extends "" ? "" : `on${Capitalize<T>}` = cacheStringFunction(
+  <T extends string>(str: T) => {
+    const s = str ? `on${capitalize(str)}` : ``;
+    return s as T extends "" ? "" : `on${Capitalize<T>}`;
+  }
+);
+
+/**
+ * 是否以on開頭
+ */
+export const isOn = (key: string): boolean =>
+  key.charCodeAt(0) === 111 /* o */ &&
+  key.charCodeAt(1) === 110 /* n */ &&
+  // uppercase letter
+  (key.charCodeAt(2) > 122 || key.charCodeAt(2) < 97);

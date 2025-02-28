@@ -101,6 +101,9 @@ export interface TransformContext
   filters?: Set<string>;
 }
 
+/**
+ * 指令變換(click事件,動態props...)
+ */
 export type DirectiveTransform = (
   dir: DirectiveNode,
   node: ElementNode,
@@ -294,7 +297,7 @@ function createRootCodegen(root: RootNode, context: TransformContext) {
     }
   } else if (children.length > 1) {
     let patchFlag = PatchFlags.STABLE_FRAGMENT;
-    console.log("patchFlag", patchFlag);
+    // console.log("patchFlag", patchFlag);
 
     //codegenNode.children 會變成陣列
     root.codegenNode = createVNodeCall(
@@ -309,6 +312,7 @@ function createRootCodegen(root: RootNode, context: TransformContext) {
       undefined,
       false /* isComponent */
     );
+    console.log("root.codegenNode", root.codegenNode);
   }
 }
 
@@ -363,7 +367,7 @@ export function traverseNode(
       node = context.currentNode;
     }
   }
-  //   console.log("node", node);
+  // console.log("node", node);
 
   switch (node.type) {
     case NodeTypes.INTERPOLATION:

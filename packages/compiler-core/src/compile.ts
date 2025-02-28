@@ -5,6 +5,7 @@ import { CodegenResult, CompilerOptions } from "./options.js";
 import { baseParse } from "./parser.js";
 import { DirectiveTransform, NodeTransform, transform } from "./transform.js";
 import { transformElement } from "./transforms/transformElement.js";
+import { transformOn } from "./transforms/vOn.js";
 
 /* v8 ignore stop */
 const prefixIdentifiers = false;
@@ -17,7 +18,7 @@ export type TransformPreset = [
 export function getBaseTransformPreset(
   prefixIdentifiers?: boolean
 ): TransformPreset {
-  return [[transformElement], {}];
+  return [[transformElement], { on: transformOn }];
 }
 
 export function baseCompile(

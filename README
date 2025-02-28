@@ -1,6 +1,9 @@
 tsc -w 並開啟根目錄下的 index.html
 
-2.寫一個method去修改資料看到ondirname(transformElement)
+2.寫一個method
+    if (dynamicPropNames.length) {
+      // 看到這裡
+    }
 
 #需要了解
 

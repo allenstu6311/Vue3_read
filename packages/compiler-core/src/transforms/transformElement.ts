@@ -1,3 +1,4 @@
+import { isOn } from "../../../shared/src/general.js";
 import { PatchFlags } from "../../../shared/src/patchFlags.js";
 import {
   CallExpression,
@@ -140,6 +141,19 @@ export function buildProps(
   let hasVnodeHook = false;
   const dynamicPropNames: string[] = [];
 
+  const analyzePatchFlag = ({ key, value }: Property) => {
+    if (isStaticExp(key)) {
+      const name = key.content;
+      const isEventHandler = isOn(name);
+      if (name === "ref") {
+      } else if (name !== "key" && !dynamicPropNames.includes(name)) {
+        dynamicPropNames.push(name);
+      }
+    } else {
+      hasDynamicKeys = true;
+    }
+  };
+
   for (let i = 0; i < props.length; i++) {
     // static attribute
     const prop = props[i];
@@ -160,6 +174,23 @@ export function buildProps(
           )
         )
       );
+    } else {
+      //directives @click
+      const { name, arg, exp, loc, modifiers } = prop;
+      const isVBind = name === "bind";
+      const isVOn = name === "on";
+
+      const directiveTransform = context.directiveTransforms[name];
+      if (directiveTransform) {
+        // has built-in directive transform.
+        const { props, needRuntime } = directiveTransform(prop, node, context);
+        props.forEach(analyzePatchFlag);
+
+        if (isVOn && arg && !isStaticExp(arg)) {
+        } else {
+          properties.push(...props);
+        }
+      }
     }
   }
 
@@ -174,9 +205,12 @@ export function buildProps(
   }
   // console.log("propsExpression", propsExpression);
 
-  // if (hasDynamicKeys) {
-  // } else {
-  // }
+  if (hasDynamicKeys) {
+  } else {
+    if (dynamicPropNames.length) {
+      // 看到這裡
+    }
+  }
 
   if (!context.inSSR && propsExpression) {
     switch (propsExpression.type) {
