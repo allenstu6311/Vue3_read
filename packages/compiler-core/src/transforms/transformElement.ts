@@ -23,6 +23,9 @@ import { NodeTransform, TransformContext } from "../transform.js";
 import { isStaticExp } from "../utils.js";
 import { getConstantType } from "./cacheStatic.js";
 
+/**
+ * 設定patchFlag
+ */
 export const transformElement: NodeTransform = (node, context) => {
   return function postTransformElement() {
     node = context.currentNode!;
@@ -54,6 +57,8 @@ export const transformElement: NodeTransform = (node, context) => {
 
     // props
     if (props.length > 0) {
+      console.log('node.props',node.props);
+      
       const propsBuildResult = buildProps(
         node,
         context,
@@ -208,11 +213,11 @@ export function buildProps(
   if (hasDynamicKeys) {
   } else {
     if (dynamicPropNames.length) {
-      // 看到這裡
+      patchFlag |= PatchFlags.PROPS
     }
   }
 
-  if (!context.inSSR && propsExpression) {
+  if (!context.inSSR && propsExpression) {    
     switch (propsExpression.type) {
       case NodeTypes.JS_OBJECT_EXPRESSION:
         // no-v-bind

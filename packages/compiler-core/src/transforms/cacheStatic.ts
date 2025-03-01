@@ -125,10 +125,6 @@ export function getConstantType(
 
   switch (node.type) {
     case NodeTypes.ELEMENT:
-      console.log("node", node);
-      // if (node.tag === "button") {
-      //   debugger;
-      // }
 
       if (node.tagType !== ElementTypes.ELEMENT) {
         return ConstantTypes.NOT_CONSTANT;
@@ -142,10 +138,7 @@ export function getConstantType(
       if (codegenNode.type !== NodeTypes.VNODE_CALL) {
         return ConstantTypes.NOT_CONSTANT;
       }
-      console.log("codegenNode", codegenNode.patchFlag);
-      // if (node.tag === "button") {
-      //   debugger;
-      // }
+
 
       if (codegenNode.patchFlag === undefined) {
         let returnType = ConstantTypes.CAN_STRINGIFY;

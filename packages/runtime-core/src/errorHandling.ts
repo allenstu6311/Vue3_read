@@ -1,3 +1,4 @@
+import { isFunction, isPromise } from "../../shared/src/general.js";
 import { ComponentInternalInstance } from "./component.js";
 import { LifecycleHooks } from "./enums.js";
 
@@ -71,5 +72,22 @@ export function callWithErrorHandling(
   } catch (err) {
     // handleError(err, instance, type);
     console.log("error", err);
+  }
+}
+
+export function callWithAsyncErrorHandling(
+  fn: Function | Function[],
+  instance: ComponentInternalInstance | null,
+  type: ErrorTypes,
+  args?: unknown[],
+): any {
+  if (isFunction(fn)) {
+    const res = callWithErrorHandling(fn, instance, type, args)
+    if (res && isPromise(res)) {
+      // res.catch(err => {
+      //   handleError(err, instance, type)
+      // })
+    }
+    return res
   }
 }

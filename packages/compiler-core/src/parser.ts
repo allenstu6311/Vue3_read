@@ -87,7 +87,7 @@ const tokenizer = new Tokenizer(stack, {
     }
 
     let exp = getSlice(innerStart, innerEnd); //{{ test }} => test
-
+    
     addNode({
       type: NodeTypes.INTERPOLATION,
       content: createExp(exp, false, getLoc(innerStart, innerEnd)),
@@ -151,6 +151,14 @@ const tokenizer = new Tokenizer(stack, {
           };
         } else {
           // directive
+          let expParseMode = ExpParseMode.Normal;
+          currentProp.exp = createExp(
+            currentAttrValue,
+            false,
+            getLoc(currentAttrStartIndex, currentAttrEndIndex),
+            ConstantTypes.NOT_CONSTANT,
+            expParseMode,
+          )
         }
       }
 
@@ -178,8 +186,8 @@ const tokenizer = new Tokenizer(stack, {
   },
   onattribnameend(end) {
     const start = currentProp!.loc.start.offset;
-    const name = getSlice(start, end); // class, id
-
+    const name = getSlice(start, end); // class, id, @click
+    
     if (currentProp?.type === NodeTypes.DIRECTIVE) {
       currentProp.rawName = name;
     }
@@ -216,6 +224,7 @@ const tokenizer = new Tokenizer(stack, {
   ondirarg(start, end) {
     if (start === end) return;
     const arg = getSlice(start, end); //click, input
+
     if (inVPre) {
     } else {
       const isStatic = arg[0] !== `[`;
@@ -226,6 +235,7 @@ const tokenizer = new Tokenizer(stack, {
         getLoc(start, end),
         isStatic ? ConstantTypes.CAN_STRINGIFY : ConstantTypes.NOT_CONSTANT
       );
+      
     }
   },
   ondirmodifier(start, end) {},
@@ -336,6 +346,8 @@ function createExp(
   parseMode = ExpParseMode.Normal
 ) {
   const exp = createSimpleExpression(content, isStatic, loc, constType);
+  console.log('exp',exp);
+  
   return exp;
 }
 

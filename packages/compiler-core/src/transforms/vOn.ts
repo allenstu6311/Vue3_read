@@ -38,7 +38,7 @@ export const transformOn: DirectiveTransform = (
   } else {
     eventName = arg;
   }
-
+  
   // handler processing
   let exp: ExpressionNode | undefined = dir.exp as
     | SimpleExpressionNode

@@ -24,7 +24,9 @@
           setup() {
             const test = ref(100);
 
-            function change(){              
+            function change(){    
+              console.log('change');
+                        
               test.value++
             }
 
