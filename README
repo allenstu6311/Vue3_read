@@ -1,6 +1,6 @@
 tsc -w 並開啟根目錄下的 index.html
 
-資料變更時模板要更新
+資料變更時模板要更新 componentUpdateFn > else
 
 #需要了解
 

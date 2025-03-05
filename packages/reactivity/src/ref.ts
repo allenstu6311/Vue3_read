@@ -1,4 +1,6 @@
+import { Dep } from "./dep.js";
 import { IfAny } from "../../runtime-dom/src/typeUtils.js";
+import { hasChanged } from "../../shared/src/general.js";
 import { ComputedRef } from "./computed.js";
 import { ReactiveFlags } from "./constants.js";
 import { isReactive, toRaw, toReactive } from "./reactive.js";
@@ -65,7 +67,7 @@ class RefImpl<T = any> {
   _value: T;
   private _rawValue: T;
 
-  // dep
+  dep: Dep = new Dep();
 
   public readonly [ReactiveFlags.IS_REF] = true; // 通過isRef得判斷能夠直接取值，不須.value
   // public readonly [ReactiveFlags.IS_SHALLOW]: boolean = false;
@@ -78,10 +80,20 @@ class RefImpl<T = any> {
   }
 
   get value() {
+    this.dep.track();
     return this._value;
   }
 
-  set value(newVal) {}
+  set value(newValue) {
+    const oldValue = this._rawValue;
+    const useDirectValue = false;
+    newValue = useDirectValue ? newValue : toRaw(newValue);
+    if (hasChanged(newValue, oldValue)) {
+      this._rawValue = newValue;
+      this._value = useDirectValue ? newValue : toReactive(newValue);
+      this.dep.trigger();
+    }
+  }
 }
 /**
  * 檢查傳入的值是否為 ref，，如果是則返回其內部的值（即 ref.value）

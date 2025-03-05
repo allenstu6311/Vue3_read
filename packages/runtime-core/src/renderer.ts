@@ -352,6 +352,7 @@ function baseCreateRenderer(
     optimized: boolean
   ) => {
     const el = (n2.el = n1.el!);
+    console.log("patchElement");
   };
 
   const processComponent = (
@@ -417,6 +418,8 @@ function baseCreateRenderer(
         slotScopeIds,
         optimized
       );
+    } else {
+      console.log("else");
     }
   };
 
@@ -499,7 +502,6 @@ function baseCreateRenderer(
         const isAsyncWrapperVNode = isAsyncWrapper(initialVNode);
 
         const subTree = (instance.subTree = renderComponentRoot(instance));
-        console.log("subTree", subTree);
         patch(
           null,
           subTree,
@@ -509,6 +511,9 @@ function baseCreateRenderer(
           parentSuspense,
           namespace
         );
+        instance.isMounted = true;
+      } else {
+        // 看到這裡
       }
     };
     // create reactive effect for rendering

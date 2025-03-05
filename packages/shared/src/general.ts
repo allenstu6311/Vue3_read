@@ -1,7 +1,7 @@
 import { makeMap } from "./makeMap.js";
 
 export const extend: typeof Object.assign = Object.assign;
-export const NOOP = (): void => { };
+export const NOOP = (): void => {};
 export const isFunction = (val: unknown): val is Function =>
   typeof val === "function";
 
@@ -76,9 +76,9 @@ export const isSymbol = (val: unknown): val is symbol =>
 export const isReservedProp: (key: string) => boolean = /*@__PURE__*/ makeMap(
   // the leading comma is intentional so empty string "" is also included
   ",key,ref,ref_for,ref_key," +
-  "onVnodeBeforeMount,onVnodeMounted," +
-  "onVnodeBeforeUpdate,onVnodeUpdated," +
-  "onVnodeBeforeUnmount,onVnodeUnmounted"
+    "onVnodeBeforeMount,onVnodeMounted," +
+    "onVnodeBeforeUpdate,onVnodeUpdated," +
+    "onVnodeBeforeUnmount,onVnodeUnmounted"
 );
 
 export const EMPTY_ARR: readonly never[] = false ? Object.freeze([]) : [];
@@ -101,19 +101,23 @@ export const isOn = (key: string): boolean =>
   // uppercase letter
   (key.charCodeAt(2) > 122 || key.charCodeAt(2) < 97);
 
-const hyphenateRE = /\B([A-Z])/g
+const hyphenateRE = /\B([A-Z])/g;
 /**
  * @private
  * 轉換駝峰式命名
  */
 export const hyphenate: (str: string) => string = cacheStringFunction(
-  (str: string) => str.replace(hyphenateRE, '-$1').toLowerCase(),
-)
+  (str: string) => str.replace(hyphenateRE, "-$1").toLowerCase()
+);
 
 export const isPromise = <T = any>(val: unknown): val is Promise<T> => {
   return (
     (isObject(val) || isFunction(val)) &&
     isFunction((val as any).then) &&
     isFunction((val as any).catch)
-  )
-}
+  );
+};
+
+// compare whether a value has changed, accounting for NaN.
+export const hasChanged = (value: any, oldValue: any): boolean =>
+  !Object.is(value, oldValue);

@@ -1,176 +1,198 @@
-import { Subscriber } from "./effect.js"
+import { ComputedRefImpl } from "./computed.js";
+import {
+  activeSub,
+  DebuggerEventExtraInfo,
+  EffectFlags,
+  endBatch,
+  shouldTrack,
+  startBatch,
+  Subscriber,
+} from "./effect.js";
 
 /**
- * Represents a link between a source (Dep) and a subscriber (Effect or Computed).
- * Deps and subs have a many-to-many relationship - each link between a
- * dep and a sub is represented by a Link instance.
+ * `Link` 負責管理 Vue 3 響應式系統中的 `Dep`（依賴）與 `Subscriber`（訂閱者）之間的關係。
  *
- * A Link is also a node in two doubly-linked lists - one for the associated
- * sub to track all its deps, and one for the associated dep to track all its
- * subs.
+ * Vue 3 的響應式系統使用 **依賴追蹤**（Dependency Tracking）來決定哪些 `Effect` 或 `Computed`
+ * 需要在數據變化時重新執行，而 `Link` 則是用來存儲 `Dep` 與 `Subscriber` 之間的對應關係。
  *
- * @internal
+ * `Dep`（依賴）代表響應式數據（如 `reactive()` 內的某個屬性）。
+ * `Subscriber`（訂閱者）代表依賴該數據的計算（如 `computed()` 或 `watchEffect()`）。
+ *
+ * ## 主要功能：
+ * 1. **每個 `Link` 代表 `Dep` 和 `Subscriber` 的一個具體關係**（因為多個 `Dep` 可能影響同一個 `Subscriber`）。
+ * 2. **雙向鏈結**：`Link` 既儲存 `Dep` 追蹤的 `Subscriber`，也儲存 `Subscriber` 依賴的 `Dep`。
+ * 3. **版本管理**：`version` 控制 `Dep` 是否仍然被 `Subscriber` 依賴，沒被使用的 `Link` 會被移除。
  */
 export class Link {
-    /**
-     * - Before each effect run, all previous dep links' version are reset to -1
-     * - During the run, a link's version is synced with the source dep on access
-     * - After the run, links with version -1 (that were never used) are cleaned
-     *   up
-     */
-    version: number
+  /**
+   * `version` 用於管理 `Dep` 與 `Subscriber` 的狀態：
+   * - **在 effect 執行前**，所有 `Link` 的 `version` 會被重設為 `-1`（代表尚未被使用）。
+   * - **在 effect 執行過程中**，當 `Dep` 被訪問時，會將 `Link.version` 設為 `Dep.version`。
+   * - **在 effect 執行後**，若 `Link.version === -1`（代表沒被使用），則這個 `Link` 會被清除。
+   */
+  version: number;
 
-    /**
-     * Pointers for doubly-linked lists
-     */
-    nextDep?: Link
-    prevDep?: Link
-    nextSub?: Link
-    prevSub?: Link
-    prevActiveLink?: Link
+  /**
+   * **依賴（Dep）鏈表指標**
+   * - `Dep` 會有多個 `Subscriber`，這些 `Subscriber` 形成一個雙向鏈結串列。
+   * - `nextDep` 指向 **下一個** 依賴相同 `Dep` 的 `Link`。
+   * - `prevDep` 指向 **上一個** 依賴相同 `Dep` 的 `Link`。
+   */
+  nextDep?: Link;
+  prevDep?: Link;
 
-    constructor(
-        public sub: Subscriber,
-        public dep: any,
-    ) {
-        this.version = dep.version
-        this.nextDep =
-            this.prevDep =
-            this.nextSub =
-            this.prevSub =
-            this.prevActiveLink =
-            undefined
-    }
+  /**
+   * **訂閱者（Subscriber）鏈表指標**
+   * - `Subscriber` 可能依賴多個 `Dep`，這些 `Dep` 形成一個雙向鏈結串列。
+   * - `nextSub` 指向 **下一個** 由相同 `Subscriber` 訂閱的 `Link`。
+   * - `prevSub` 指向 **上一個** 由相同 `Subscriber` 訂閱的 `Link`。
+   */
+  nextSub?: Link;
+  prevSub?: Link;
+
+  /**
+   * **作用中的 `Link` 指標**
+   * - `prevActiveLink` 指向上一次作用的 `Link`，這樣可以在 `Effect` 內快速找到上次使用的依賴。
+   */
+  prevActiveLink?: Link;
+
+  /**
+   * 建立 `Link`，將 `Subscriber`（訂閱者）與 `Dep`（依賴）綁定。
+   *
+   * @param sub 訂閱者（Effect 或 Computed）
+   * @param dep 依賴的 `Dep`
+   */
+  constructor(public sub: Subscriber, public dep: Dep) {
+    // 初始化時，`version` 會跟 `Dep` 的 `version` 同步
+    this.version = dep.version;
+
+    // 初始化所有鏈結為 `undefined`
+    this.nextDep =
+      this.prevDep =
+      this.nextSub =
+      this.prevSub =
+      this.prevActiveLink =
+        undefined;
+  }
 }
 
-// export class Dep {
-//     version = 0
-//     /**
-//      * Link between this dep and the current active effect
-//      */
-//     activeLink?: Link = undefined
+// The main WeakMap that stores {target -> key -> dep} connections.
+// Conceptually, it's easier to think of a dependency as a Dep class
+// which maintains a Set of subscribers, but we simply store them as
+// raw Maps to reduce memory overhead.
+type KeyToDepMap = Map<any, Dep>;
 
-//     /**
-//      * Doubly linked list representing the subscribing effects (tail)
-//      */
-//     subs?: Link = undefined
+/**
+ * Incremented every time a reactive change happens
+ * This is used to give computed a fast path to avoid re-compute when nothing
+ * has changed.
+ */
+export let globalVersion = 0;
 
-//     /**
-//      * Doubly linked list representing the subscribing effects (head)
-//      * DEV only, for invoking onTrigger hooks in correct order
-//      */
-//     subsHead?: Link
+/**
+ * @internal
+ */
+export class Dep {
+  /**
+   * 版本號（每次變更時 +1）
+   * - 用於響應式系統的依賴追蹤，確保 `Subscriber` 只在 `Dep` 變更時重新運行
+   */
+  version = 0;
+  /**
+   * 當前活躍的 `Link`
+   */
+  activeLink?: Link = undefined;
 
-//     /**
-//      * For object property deps cleanup
-//      */
-//     map?: KeyToDepMap = undefined
-//     key?: unknown = undefined
+  /**
+   * 用來管理有哪些 `Subscriber` 依賴這個 `Dep`
+   */
+  subs?: Link = undefined;
 
-//     /**
-//      * Subscriber counter
-//      */
-//     sc: number = 0
+  /**
+   * Doubly linked list representing the subscribing effects (head)
+   * DEV only, for invoking onTrigger hooks in correct order
+   */
+  subsHead?: Link;
 
-//     constructor(public computed?: ComputedRefImpl | undefined) {
+  /**
+   * For object property deps cleanup
+   */
+  map?: KeyToDepMap = undefined;
+  key?: unknown = undefined;
 
-//     }
+  /**
+   * 記錄 `Dep` 有多少個 `Subscriber
+   */
+  sc: number = 0;
 
-//     track(debugInfo?: DebuggerEventExtraInfo): Link | undefined {
-//         if (!activeSub || !shouldTrack || activeSub === this.computed) {
-//             return
-//         }
+  constructor(public computed?: ComputedRefImpl | undefined) {}
+  /**
+   * 當 `Subscriber` 讀取 `Dep` 時，會呼叫 `track()
+   */
+  track(debugInfo?: DebuggerEventExtraInfo): Link | undefined {
+    if (!activeSub || !shouldTrack || activeSub === this.computed) {
+      return;
+    }
 
-//         let link = this.activeLink
-//         if (link === undefined || link.sub !== activeSub) {
-//             link = this.activeLink = new Link(activeSub, this)
+    let link = this.activeLink;
 
-//             // add the link to the activeEffect as a dep (as tail)
-//             if (!activeSub.deps) {
-//                 activeSub.deps = activeSub.depsTail = link
-//             } else {
-//                 link.prevDep = activeSub.depsTail
-//                 activeSub.depsTail!.nextDep = link
-//                 activeSub.depsTail = link
-//             }
+    if (link === undefined || link.sub !== activeSub) {
+      link = this.activeLink = new Link(activeSub, this);
 
-//             addSub(link)
-//         } else if (link.version === -1) {
-//             // reused from last run - already a sub, just sync version
-//             link.version = this.version
+      if (!activeSub.deps) {
+        activeSub.deps = activeSub.depsTail = link;
+      }
+      addSub(link);
+    }
 
-//             // If this dep has a next, it means it's not at the tail - move it to the
-//             // tail. This ensures the effect's dep list is in the order they are
-//             // accessed during evaluation.
-//             if (link.nextDep) {
-//                 const next = link.nextDep
-//                 next.prevDep = link.prevDep
-//                 if (link.prevDep) {
-//                     link.prevDep.nextDep = next
-//                 }
+    return link;
+  }
+  /**
+   * 當 `Dep`（響應式數據）變更時，會呼叫 `trigger()` 通知所有 `Subscriber
+   */
+  trigger(debugInfo?: DebuggerEventExtraInfo): void {
+    this.version++;
+    globalVersion++;
+    this.notify(debugInfo);
+  }
+  /**
+   * 讓所有訂閱該 `Dep` 的 `Effect` 或 `computed` 重新執行
+   */
+  notify(debugInfo?: DebuggerEventExtraInfo): void {
+    startBatch();
 
-//                 link.prevDep = activeSub.depsTail
-//                 link.nextDep = undefined
-//                 activeSub.depsTail!.nextDep = link
-//                 activeSub.depsTail = link
+    try {
+      for (let link = this.subs; link; link = link.prevSub) {
+        console.log("link", link.sub);
 
-//                 // this was the head - point to the new head
-//                 if (activeSub.deps === link) {
-//                     activeSub.deps = next
-//                 }
-//             }
-//         }
+        if (link.sub.notify()) {
+          // 如果 `notify()` 回傳 `true`，代表這個 `Subscriber` 是 `computed`
+          // 需要進一步通知 `Dep`，確保 `computed` 內的依賴也能更新
+          (link.sub as ComputedRefImpl).dep.notify();
+        }
+      }
+    } finally {
+      // 觸發ReactiveEffect trigger
+      endBatch();
+    }
+  }
+}
 
-//         if (__DEV__ && activeSub.onTrack) {
-//             activeSub.onTrack(
-//                 extend(
-//                     {
-//                         effect: activeSub,
-//                     },
-//                     debugInfo,
-//                 ),
-//             )
-//         }
+function addSub(link: Link) {
+  link.dep.sc++;
 
-//         return link
-//     }
+  // 是否處於追蹤狀態
+  if (link.sub.flags & EffectFlags.TRACKING) {
+    link.dep.subs = link;
+  }
+}
 
-//     trigger(debugInfo?: DebuggerEventExtraInfo): void {
-//         this.version++
-//         globalVersion++
-//         this.notify(debugInfo)
-//     }
-
-//     notify(debugInfo?: DebuggerEventExtraInfo): void {
-//         startBatch()
-//         try {
-//             if (__DEV__) {
-//                 // subs are notified and batched in reverse-order and then invoked in
-//                 // original order at the end of the batch, but onTrigger hooks should
-//                 // be invoked in original order here.
-//                 for (let head = this.subsHead; head; head = head.nextSub) {
-//                     if (head.sub.onTrigger && !(head.sub.flags & EffectFlags.NOTIFIED)) {
-//                         head.sub.onTrigger(
-//                             extend(
-//                                 {
-//                                     effect: head.sub,
-//                                 },
-//                                 debugInfo,
-//                             ),
-//                         )
-//                     }
-//                 }
-//             }
-//             for (let link = this.subs; link; link = link.prevSub) {
-//                 if (link.sub.notify()) {
-//                     // if notify() returns `true`, this is a computed. Also call notify
-//                     // on its dep - it's called here instead of inside computed's notify
-//                     // in order to reduce call stack depth.
-//                     ; (link.sub as ComputedRefImpl).dep.notify()
-//                 }
-//             }
-//         } finally {
-//             endBatch()
-//         }
-//     }
-// }
+/**
+ * Finds all deps associated with the target (or a specific property) and
+ * triggers the effects stored within.
+ *
+ * @param target - The reactive object.
+ * @param type - Defines the type of the operation that needs to trigger effects.
+ * @param key - Can be used to target a specific reactive property in the target object.
+ */
+export function trigger() {}
