@@ -163,8 +163,6 @@ export class Dep {
 
     try {
       for (let link = this.subs; link; link = link.prevSub) {
-        console.log("link", link.sub);
-
         if (link.sub.notify()) {
           // 如果 `notify()` 回傳 `true`，代表這個 `Subscriber` 是 `computed`
           // 需要進一步通知 `Dep`，確保 `computed` 內的依賴也能更新

@@ -1,5 +1,5 @@
 import { ShapeFlags } from "./../../shared/src/shapeFlags.js";
-import { isReservedProp, NOOP } from "../../shared/src/general.js";
+import { EMPTY_OBJ, isReservedProp, NOOP } from "../../shared/src/general.js";
 import { createAppAPI, CreateAppFunction } from "./compat/apiCreateApp.js";
 import {
   ComponentInternalInstance,
@@ -14,11 +14,18 @@ import type {
   VNodeHook,
   VNodeProps,
 } from "./vnode.js";
-import { cloneIfMounted, Fragment, normalizeVNode, Text } from "./vnode.js";
+import {
+  cloneIfMounted,
+  Fragment,
+  isSameVNodeType,
+  normalizeVNode,
+  Text,
+} from "./vnode.js";
 import { ReactiveEffect } from "../../reactivity/src/effect.js";
 import { SchedulerJob } from "./scheduler.js";
 import { isAsyncWrapper } from "./apiAsyncComponent.js";
 import { renderComponentRoot } from "./componentRenderUtils.js";
+import { PatchFlags } from "../../shared/src/patchFlags.js";
 
 /**
  * RendererNode 可以是任何物件。在核心渲染邏輯中，它不會被直接操作，
@@ -46,6 +53,8 @@ export interface Renderer<HostElement = RendererElement> {
   render: RootRenderFunction<HostElement>;
   createApp: CreateAppFunction<HostElement>;
 }
+
+type NextFn = (vnode: VNode) => RendererNode | null;
 
 export enum MoveType {
   ENTER,
@@ -147,6 +156,16 @@ export type MountComponentFn = (
   parentSuspense: SuspenseBoundary | null,
   namespace: ElementNamespace,
   optimized: boolean
+) => void;
+
+type PatchBlockChildrenFn = (
+  oldChildren: VNode[],
+  newChildren: VNode[],
+  fallbackContainer: RendererElement,
+  parentComponent: ComponentInternalInstance | null,
+  parentSuspense: SuspenseBoundary | null,
+  namespace: ElementNamespace,
+  slotScopeIds: string[] | null
 ) => void;
 
 export function createRenderer<
@@ -352,7 +371,57 @@ function baseCreateRenderer(
     optimized: boolean
   ) => {
     const el = (n2.el = n1.el!);
-    console.log("patchElement");
+    let { patchFlag, dynamicChildren, dirs } = n2;
+    patchFlag |= n1.patchFlag & PatchFlags.FULL_PROPS;
+
+    const oldProps = n1.props || EMPTY_OBJ;
+    const newProps = n2.props || EMPTY_OBJ;
+    let vnodeHook: VNodeHook | undefined | null;
+
+    if (
+      (oldProps.innerHTML && newProps.innerHTML == null) ||
+      (oldProps.textContent && newProps.textContent == null)
+    ) {
+      hostSetElementText(el, "");
+    }
+
+    // if (dynamicChildren) {
+    //   patchBlockChildren(
+    //     n1.dynamicChildren!,
+    //     dynamicChildren,
+    //     el,
+    //     parentComponent,
+    //     parentSuspense,
+    //     resolveChildrenNamespace(n2, namespace),
+    //     slotScopeIds
+    //   );
+    // }
+
+    // patchFlag > 0 代表需要經過diff
+    if (patchFlag > 0) {
+      if (patchFlag & PatchFlags.PROPS) {
+        // if the flag is present then dynamicProps must be non-null
+        const propsToUpdate = n2.dynamicProps!;
+        console.log("propsToUpdate", propsToUpdate);
+        for (let i = 0; i < propsToUpdate.length; i++) {
+          const key = propsToUpdate[i];
+          const prev = oldProps[key];
+          const next = newProps[key];
+          // #1471 force patch value
+          if (next !== prev || key === "value") {
+            hostPatchProp(el, key, prev, next, namespace, parentComponent);
+          }
+        }
+      }
+
+      // text
+      // This flag is matched when the element has only dynamic text children.
+      if (patchFlag & PatchFlags.TEXT) {
+        if (n1.children !== n2.children) {
+          hostSetElementText(el, n2.children as string);
+        }
+      }
+    }
   };
 
   const processComponent = (
@@ -419,7 +488,22 @@ function baseCreateRenderer(
         optimized
       );
     } else {
-      console.log("else");
+      if (
+        patchFlag > 0 &&
+        patchFlag & PatchFlags.STABLE_FRAGMENT &&
+        dynamicChildren &&
+        n1.dynamicChildren // 確保前一個 Fragment 不是 BAIL 狀態
+      ) {
+        patchBlockChildren(
+          n1.dynamicChildren,
+          dynamicChildren,
+          container,
+          parentComponent,
+          parentSuspense,
+          namespace,
+          slotScopeIds
+        );
+      }
     }
   };
 
@@ -502,6 +586,7 @@ function baseCreateRenderer(
         const isAsyncWrapperVNode = isAsyncWrapper(initialVNode);
 
         const subTree = (instance.subTree = renderComponentRoot(instance));
+
         patch(
           null,
           subTree,
@@ -513,7 +598,21 @@ function baseCreateRenderer(
         );
         instance.isMounted = true;
       } else {
-        // 看到這裡
+        let { next, bu, u, parent, vnode } = instance;
+        const nextTree = renderComponentRoot(instance);
+        const prevTree = instance.subTree;
+
+        patch(
+          prevTree,
+          nextTree,
+          // 可能因 Teleport 改變了父級
+          hostParentNode(prevTree.el!)!,
+          // 可能因 Fragment 變化導致錨點變更
+          getNextHostNode(prevTree),
+          instance,
+          parentSuspense,
+          namespace
+        );
       }
     };
     // create reactive effect for rendering
@@ -544,6 +643,77 @@ function baseCreateRenderer(
       );
     }
   };
+
+  /**
+   * 獲取下一個插入得節點
+   * @param vnode
+   */
+  const getNextHostNode: NextFn = (vnode) => {
+    if (vnode.shapeFlag & ShapeFlags.COMPONENT) {
+      return getNextHostNode(vnode.component!.subTree);
+    }
+    // const el = hostNextSibling((vnode.anchor || vnode.el)!)
+    return null;
+  };
+
+  // The fast path for blocks.
+  const patchBlockChildren: PatchBlockChildrenFn = (
+    oldChildren,
+    newChildren,
+    fallbackContainer,
+    parentComponent,
+    parentSuspense,
+    namespace: ElementNamespace,
+    slotScopeIds
+  ) => {
+    for (let i = 0; i < newChildren.length; i++) {
+      const oldVNode = oldChildren[i];
+      const newVNode = newChildren[i];
+      // Determine the container (parent element) for the patch.
+      const container =
+        // oldVNode may be an errored async setup() component inside Suspense
+        // which will not have a mounted element
+        oldVNode.el &&
+        // - In the case of a Fragment, we need to provide the actual parent
+        // of the Fragment itself so it can move its children.
+        (oldVNode.type === Fragment ||
+          // - In the case of different nodes, there is going to be a replacement
+          // which also requires the correct parent container
+          !isSameVNodeType(oldVNode, newVNode) ||
+          // - In the case of a component, it could contain anything.
+          oldVNode.shapeFlag & (ShapeFlags.COMPONENT | ShapeFlags.TELEPORT))
+          ? hostParentNode(oldVNode.el)!
+          : // In other cases, the parent container is not actually used so we
+            // just pass the block element here to avoid a DOM parentNode call.
+            fallbackContainer;
+
+      patch(
+        oldVNode,
+        newVNode,
+        container,
+        null,
+        parentComponent,
+        parentSuspense,
+        namespace,
+        slotScopeIds,
+        true
+      );
+    }
+  };
+
+  function resolveChildrenNamespace(
+    { type, props }: VNode,
+    currentNamespace: ElementNamespace
+  ): ElementNamespace {
+    return (currentNamespace === "svg" && type === "foreignObject") ||
+      (currentNamespace === "mathml" &&
+        type === "annotation-xml" &&
+        props &&
+        props.encoding &&
+        props.encoding.includes("html"))
+      ? undefined
+      : currentNamespace;
+  }
 
   return {
     render,

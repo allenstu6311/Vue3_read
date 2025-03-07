@@ -354,6 +354,26 @@ function createBaseVNode(
       : ShapeFlags.ARRAY_CHILDREN;
   }
 
+  // track vnode for block tree
+  if (
+    isBlockTreeEnabled > 0 &&
+    // avoid a block node from tracking itself
+    !isBlockNode &&
+    // has current parent block
+    currentBlock &&
+    // presence of a patch flag indicates this node needs patching on updates.
+    // component nodes also should always be patched, because even if the
+    // component doesn't need to update, it needs to persist the instance on to
+    // the next vnode so that it can be properly unmounted later.
+    (vnode.patchFlag > 0 || shapeFlag & ShapeFlags.COMPONENT) &&
+    // the EVENTS flag is only for hydration and if it is the only flag, the
+    // vnode should not be considered dynamic due to handler caching.
+    vnode.patchFlag !== PatchFlags.NEED_HYDRATION
+  ) {
+    // 加入動態節點
+    currentBlock.push(vnode);
+  }
+
   return vnode;
 }
 
@@ -415,8 +435,6 @@ export function cloneVNode<T, U>(
   mergeRef = false,
   cloneTransition = false
 ): VNode<T, U> {
-  console.log("cloneVNode");
-
   const { props, ref, patchFlag, children, transition } = vnode;
   const mergedProps = props;
   const cloned: VNode<T, U> = {
@@ -465,4 +483,8 @@ export function cloneVNode<T, U>(
   };
 
   return cloned;
+}
+
+export function isSameVNodeType(n1: VNode, n2: VNode): boolean {
+  return n1.type === n2.type && n1.key === n2.key;
 }

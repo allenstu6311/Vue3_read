@@ -41,6 +41,9 @@ export const nodeOps: Omit<RendererOptions<Node, Element>, "patchProp"> = {
   setElementText: (el, text) => {
     el.textContent = text;
   },
+  /**
+   * 返回父層節點
+   */
   parentNode: (node) => node.parentNode as Element | null,
   nextSibling: (node) => node.nextSibling,
   querySelector: (selector) => doc.querySelector(selector),
