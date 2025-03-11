@@ -24,7 +24,11 @@ import { isStaticExp } from "../utils.js";
 import { getConstantType } from "./cacheStatic.js";
 
 /**
- * 設定patchFlag
+ * 轉換 AST 中的元素節點，生成對應的 VNode 代碼。
+ * - 處理標籤 (靜態/動態)
+ * - 處理屬性 (props, directives)
+ * - 處理子節點 (slots, children)
+ * - 設定 patchFlag 以優化渲染更新
  */
 export const transformElement: NodeTransform = (node, context) => {
   return function postTransformElement() {
@@ -57,8 +61,8 @@ export const transformElement: NodeTransform = (node, context) => {
 
     // props
     if (props.length > 0) {
-      console.log('node.props',node.props);
-      
+      // console.log('node.props',node.props);
+
       const propsBuildResult = buildProps(
         node,
         context,
@@ -68,6 +72,7 @@ export const transformElement: NodeTransform = (node, context) => {
       );
       vnodeProps = propsBuildResult.props;
       patchFlag = propsBuildResult.patchFlag;
+      dynamicPropNames = propsBuildResult.dynamicPropNames;
     }
 
     // children
@@ -92,6 +97,11 @@ export const transformElement: NodeTransform = (node, context) => {
           vnodeChildren = child as TemplateTextChildNode;
         }
       }
+    }
+
+    // patchFlag & dynamicPropNames
+    if (dynamicPropNames && dynamicPropNames.length) {
+      vnodeDynamicProps = stringifyDynamicPropNames(dynamicPropNames);
     }
 
     node.codegenNode = createVNodeCall(
@@ -213,11 +223,11 @@ export function buildProps(
   if (hasDynamicKeys) {
   } else {
     if (dynamicPropNames.length) {
-      patchFlag |= PatchFlags.PROPS
+      patchFlag |= PatchFlags.PROPS;
     }
   }
 
-  if (!context.inSSR && propsExpression) {    
+  if (!context.inSSR && propsExpression) {
     switch (propsExpression.type) {
       case NodeTypes.JS_OBJECT_EXPRESSION:
         // no-v-bind
@@ -291,4 +301,13 @@ export function buildProps(
     }
     return deduped;
   }
+}
+
+function stringifyDynamicPropNames(props: string[]): string {
+  let propsNamesString = `[`;
+  for (let i = 0, l = props.length; i < l; i++) {
+    propsNamesString += JSON.stringify(props[i]);
+    if (i < l - 1) propsNamesString += ", ";
+  }
+  return propsNamesString + `]`;
 }

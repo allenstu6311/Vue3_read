@@ -22,10 +22,9 @@ export enum PatchFlags {
   STYLE = 1 << 2,
 
   /**
-   * 表示該元素具有非 `class` 或 `style` 的其他動態屬性。
-   * 這也適用於組件（無論 props 是否包含 `class` 或 `style`）。
-   * 如果該標誌存在，則 `vnode` 也會有 `dynamicProps` 陣列，
-   * 其中包含可能會變更的 props 鍵名，以便運行時可以更快地進行比對（無需擔心屬性刪除）。
+   * 標記 VNode 具有動態屬性（不包括 `class` 和 `style`）。
+   * 這適用於普通元素和組件，運行時會根據 `dynamicProps` 陣列
+   * 來優化比對變更，提高渲染效率。
    */
   PROPS = 1 << 3,
 

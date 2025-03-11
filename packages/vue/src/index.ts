@@ -33,13 +33,8 @@ function compileToFunction(
   );
 
   const { code } = compile(template, opts);
-  // console.log("code", code);
-
   const render = new Function("Vue", code)(runtimeDom);
-  // console.log("compileCache", compileCache);
 
-  // compile(template, opts);
-  // return null as any;
   return (compileCache[key] = render);
 }
 registerRuntimeCompiler(compileToFunction);

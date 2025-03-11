@@ -312,7 +312,6 @@ function createRootCodegen(root: RootNode, context: TransformContext) {
       undefined,
       false /* isComponent */
     );
-    console.log("root.codegenNode", root.codegenNode);
   }
 }
 

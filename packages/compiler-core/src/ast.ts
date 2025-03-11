@@ -207,7 +207,10 @@ export interface RootNode extends Node {
   cached: (any | null)[];
   temps: number;
   ssrHelpers?: symbol[];
-  codegenNode?: any;
+  /**
+   * 負責存儲這個節點VNode的最終渲染輸出
+   */
+  codegenNode?: TemplateChildNode | JSChildNode | BlockCodegenNode;
   transformed?: boolean;
 
   // v2 compat only

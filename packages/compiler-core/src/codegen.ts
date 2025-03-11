@@ -207,6 +207,9 @@ enum NewlineType {
   Unknown = -3,
 }
 
+/**
+ * 正式渲染前的預處理，生成變數或快取
+ */
 function genFunctionPreamble(ast: RootNode, context: CodegenContext) {
   const {
     ssr,

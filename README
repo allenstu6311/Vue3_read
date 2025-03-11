@@ -1,6 +1,6 @@
 tsc -w 並開啟根目錄下的 index.html
 
-資料變更時模板要更新 n2.dynamicProps在哪裡賦直
+資料變更時模板要更新，閱讀diff邏輯
 
 
 #需要了解

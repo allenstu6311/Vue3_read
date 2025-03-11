@@ -204,6 +204,8 @@ export function createAppAPI<HostElement>(
         isHydrate?: boolean,
         namespace?: boolean | ElementNamespace
       ): any {
+        console.log("mount");
+
         if (!isMounted) {
           const vnode = app._ceVNode || createVNode(rootComponent, rootProps);
           vnode.appContext = context;
@@ -213,9 +215,7 @@ export function createAppAPI<HostElement>(
           } else if (namespace === false) {
             namespace = undefined;
           }
-          // console.log("mount render", render);
-
-          render(vnode, rootContainer, namespace);
+          render(vnode, rootContainer, namespace); // vnode == null ? unmount : patch
 
           isMounted = true;
           app._container = rootContainer;

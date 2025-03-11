@@ -87,7 +87,7 @@ const tokenizer = new Tokenizer(stack, {
     }
 
     let exp = getSlice(innerStart, innerEnd); //{{ test }} => test
-    
+
     addNode({
       type: NodeTypes.INTERPOLATION,
       content: createExp(exp, false, getLoc(innerStart, innerEnd)),
@@ -157,8 +157,8 @@ const tokenizer = new Tokenizer(stack, {
             false,
             getLoc(currentAttrStartIndex, currentAttrEndIndex),
             ConstantTypes.NOT_CONSTANT,
-            expParseMode,
-          )
+            expParseMode
+          );
         }
       }
 
@@ -187,7 +187,7 @@ const tokenizer = new Tokenizer(stack, {
   onattribnameend(end) {
     const start = currentProp!.loc.start.offset;
     const name = getSlice(start, end); // class, id, @click
-    
+
     if (currentProp?.type === NodeTypes.DIRECTIVE) {
       currentProp.rawName = name;
     }
@@ -235,7 +235,6 @@ const tokenizer = new Tokenizer(stack, {
         getLoc(start, end),
         isStatic ? ConstantTypes.CAN_STRINGIFY : ConstantTypes.NOT_CONSTANT
       );
-      
     }
   },
   ondirmodifier(start, end) {},
@@ -346,8 +345,6 @@ function createExp(
   parseMode = ExpParseMode.Normal
 ) {
   const exp = createSimpleExpression(content, isStatic, loc, constType);
-  console.log('exp',exp);
-  
   return exp;
 }
 

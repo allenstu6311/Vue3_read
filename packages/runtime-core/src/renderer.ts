@@ -402,7 +402,6 @@ function baseCreateRenderer(
       if (patchFlag & PatchFlags.PROPS) {
         // if the flag is present then dynamicProps must be non-null
         const propsToUpdate = n2.dynamicProps!;
-        console.log("propsToUpdate", propsToUpdate);
         for (let i = 0; i < propsToUpdate.length; i++) {
           const key = propsToUpdate[i];
           const prev = oldProps[key];
@@ -631,6 +630,7 @@ function baseCreateRenderer(
 
   const render: RootRenderFunction = (vnode, container, namespace) => {
     if (vnode == null) {
+      // unmount邏輯
     } else {
       patch(
         container._vnode || null,
@@ -670,22 +670,30 @@ function baseCreateRenderer(
       const oldVNode = oldChildren[i];
       const newVNode = newChildren[i];
       // Determine the container (parent element) for the patch.
-      const container =
-        // oldVNode may be an errored async setup() component inside Suspense
-        // which will not have a mounted element
-        oldVNode.el &&
-        // - In the case of a Fragment, we need to provide the actual parent
-        // of the Fragment itself so it can move its children.
-        (oldVNode.type === Fragment ||
-          // - In the case of different nodes, there is going to be a replacement
-          // which also requires the correct parent container
-          !isSameVNodeType(oldVNode, newVNode) ||
-          // - In the case of a component, it could contain anything.
-          oldVNode.shapeFlag & (ShapeFlags.COMPONENT | ShapeFlags.TELEPORT))
-          ? hostParentNode(oldVNode.el)!
-          : // In other cases, the parent container is not actually used so we
-            // just pass the block element here to avoid a DOM parentNode call.
-            fallbackContainer;
+      const container = (() => {
+        // 如果 oldVNode 沒有 el（表示它可能是錯誤的 async setup() 組件，位於 Suspense 中），則不需要父元素
+        if (!oldVNode.el) {
+          return fallbackContainer;
+        }
+
+        // 1. 如果是 Fragment，則需要提供 Fragment 的父元素，因為它會包含子元素
+        if (oldVNode.type === Fragment) {
+          return hostParentNode(oldVNode.el)!;
+        }
+
+        // 2. 如果是不同類型的節點，會進行替換，這也需要正確的父容器
+        if (!isSameVNodeType(oldVNode, newVNode)) {
+          return hostParentNode(oldVNode.el)!;
+        }
+
+        // 3. 如果是組件或 teleport，這些情況下父容器也是必須的
+        if (oldVNode.shapeFlag & (ShapeFlags.COMPONENT | ShapeFlags.TELEPORT)) {
+          return hostParentNode(oldVNode.el)!;
+        }
+
+        // 如果以上條件都不符合，就返回 fallbackContainer
+        return fallbackContainer;
+      })();
 
       patch(
         oldVNode,
