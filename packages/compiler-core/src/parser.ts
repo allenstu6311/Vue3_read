@@ -13,6 +13,7 @@ import {
   DirectiveNode,
   ElementNode,
   ElementTypes,
+  ForParseResult,
   Namespaces,
   NodeTypes,
   RootNode,
@@ -23,6 +24,7 @@ import {
 import { ParserOptions } from "./options.js";
 import { CompilerCompatOptions } from "./compact/compatConfig";
 import { defaultOnError, defaultOnWarn } from "./errors.js";
+import { forAliasRE } from "./utils.js";
 
 type OptionalOptions =
   | "decodeEntities"
@@ -159,6 +161,10 @@ const tokenizer = new Tokenizer(stack, {
             ConstantTypes.NOT_CONSTANT,
             expParseMode
           );
+
+          if (currentProp.name === "for") {
+            currentProp.forParseResult = parseForExpression(currentProp.exp);
+          }
         }
       }
 
@@ -464,4 +470,52 @@ export function baseParse(input: string, options?: ParserOptions): RootNode {
   root.loc = getLoc(0, input.length);
   root.children = condenseWhitespace(root.children);
   return root;
+}
+
+const forIteratorRE = /,([^,\}\]]*)(?:,([^,\}\]]*))?$/; //(item, key ,index) in obj
+const stripParensRE = /^\(|\)$/g;
+
+function parseForExpression(
+  input: SimpleExpressionNode
+): ForParseResult | undefined {
+  const loc = input.loc;
+  const exp = input.content; // item in data
+  const inMatch = exp.match(forAliasRE); // item in data
+
+  if (!inMatch) return;
+
+  const [, LHS, RHS] = inMatch; // item , data
+
+  const createAliasExpression = (
+    content: string,
+    offset: number,
+    asParam = false
+  ) => {
+    const start = loc.start.offset + offset;
+    const end = start + content.length;
+    return createExp(
+      content,
+      false,
+      getLoc(start, end),
+      ConstantTypes.NOT_CONSTANT,
+      asParam ? ExpParseMode.Params : ExpParseMode.Normal
+    );
+  };
+
+  const result: ForParseResult = {
+    source: createAliasExpression(RHS.trim(), exp.indexOf(RHS, LHS.length)), //data
+    value: undefined,
+    key: undefined,
+    index: undefined,
+    finalized: false,
+  };
+
+  let valueContent = LHS.trim().replace(stripParensRE, "").trim(); //item
+  const trimmedOffset = LHS.indexOf(valueContent);
+
+  if (valueContent) {
+    result.value = createAliasExpression(valueContent, trimmedOffset, true);
+  }
+
+  return result;
 }

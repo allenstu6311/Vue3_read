@@ -1,6 +1,11 @@
 tsc -w 並開啟根目錄下的 index.html
 
-資料變更時模板要更新，閱讀diff邏輯
+處理v-for processFor
+
+
+1.v-model
+2.v-for
+3.reactive
 
 
 #需要了解

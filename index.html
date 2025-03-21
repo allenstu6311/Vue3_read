@@ -7,9 +7,7 @@
   </head>
   <body>
     <div id="app">
-      <div class="className">{{test}}</div>
-      <div class="static">static</div>
-      <button @click="change">add</button>
+      <div class="item" v-for="item in data" :key="item">{{ item }}</div>
     </div>
 
       <script
@@ -23,6 +21,7 @@
         const app = createApp({
           setup() {
             const test = ref(100);
+            const data = ref([1,2,3])
 
             function change(){    
               test.value++
@@ -32,7 +31,8 @@
 
             return {
               test,
-              change
+              change,
+              data
             };
           },
         }).mount("#app");

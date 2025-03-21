@@ -170,6 +170,7 @@ export enum State {
   /**
    * 指令名称状态。
    * 示例：`<div v-model="name">` 中的 `v-model`
+   * v-for, v-if
    */
   InDirName,
   /**
@@ -377,7 +378,7 @@ export interface Callbacks {
 
   /**
    * 處理指令名稱的回調。
-   * v-if="data"=>data, id="app"=app
+   * v-for && v-if="data"=>data, id="app"=app
    * @param start 指令名稱開始的索引位置。
    * @param endIndex 指令名稱結束的索引位置（不包括）。
    */
@@ -510,6 +511,9 @@ export default class Tokenizer {
 
   constructor(private readonly stack: any[], private readonly cbs: Callbacks) {}
 
+  /**
+   *  預測下一步字符
+   */
   private peek() {
     return this.buffer.charCodeAt(this.index + 1);
   }
@@ -652,6 +656,8 @@ export default class Tokenizer {
       this.cbs.onopentagend(this.index);
       this.state = State.Text;
       this.sectionStart = this.index + 1;
+    } else if (c === CharCodes.Slash) {
+    } else if (c === CharCodes.Lt && this.peek() === CharCodes.Slash) {
     } else if (!isWhitespace(c)) {
       this.handleAttrStart(c);
     }
@@ -661,13 +667,17 @@ export default class Tokenizer {
    * @、:、#
    */
   private handleAttrStart(c: number) {
+    // v 或 -
     if (c === CharCodes.LowerV && this.peek() === CharCodes.Dash) {
+      this.state = State.InDirName;
+      this.sectionStart = this.index;
     } else if (
       c === CharCodes.Dot ||
       c === CharCodes.Colon ||
       c === CharCodes.At ||
       c === CharCodes.Number
     ) {
+      // . : @ #
       this.cbs.ondirname(this.index, this.index + 1);
       this.state = State.InDirArg;
       this.sectionStart = this.index + 1;
@@ -681,6 +691,7 @@ export default class Tokenizer {
    * 賦值currentProp，處理"="
    */
   private stateInAttrName(c: number): void {
+    // console.log("stateInAttrName", this.buffer.charAt(this.index));
     if (c === CharCodes.Eq || isEndOfTagSection(c)) {
       this.cbs.onattribname(this.sectionStart, this.index);
       this.handleAttrNameEnd(c);
@@ -806,6 +817,15 @@ export default class Tokenizer {
     }
   }
 
+  private stateInDirName(c: number): void {
+    if (c === CharCodes.Eq || isEndOfTagSection(c)) {
+      this.cbs.ondirname(this.sectionStart, this.index);
+      this.handleAttrNameEnd(c);
+    } else if (c === CharCodes.Colon) {
+    } else if (c === CharCodes.Dot) {
+    }
+  }
+
   /**
    * 模板解析
    * @param input template
@@ -860,6 +880,11 @@ export default class Tokenizer {
         case State.InAttrName: {
           // 12
           this.stateInAttrName(c);
+          break;
+        }
+        // 13
+        case State.InDirName: {
+          this.stateInDirName(c);
           break;
         }
         case State.BeforeAttrValue: {

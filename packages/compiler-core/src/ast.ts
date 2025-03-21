@@ -5,6 +5,7 @@ import {
   CREATE_ELEMENT_BLOCK,
   CREATE_ELEMENT_VNODE,
   CREATE_VNODE,
+  FRAGMENT,
   OPEN_BLOCK,
   RENDER_LIST,
   RENDER_SLOT,
@@ -224,10 +225,33 @@ export enum Namespaces {
 }
 
 export enum ElementTypes {
+  /**
+   * 普通的 HTML 標籤，如 <div>, <span>, <p> 等。
+   */
   ELEMENT,
+  /**
+   * Vue 組件，例如 <MyComponent>
+   */
   COMPONENT,
+  /**
+   * Vue 的 <slot> 元素，用於插槽機制。
+   */
   SLOT,
+  /**
+   * Vue 的 <template> 元素
+   */
   TEMPLATE,
+}
+
+export interface ForNode extends Node {
+  type: NodeTypes.FOR;
+  source: ExpressionNode;
+  valueAlias: ExpressionNode | undefined;
+  keyAlias: ExpressionNode | undefined;
+  objectIndexAlias: ExpressionNode | undefined;
+  parseResult: ForParseResult;
+  children: TemplateChildNode[];
+  codegenNode?: ForCodegenNode;
 }
 
 export interface TextNode extends Node {
@@ -459,6 +483,15 @@ export type BlockCodegenNode = VNodeCall;
 export interface ForRenderListExpression extends CallExpression {
   callee: typeof RENDER_LIST;
   arguments: any;
+}
+
+export interface ForCodegenNode extends VNodeCall {
+  isBlock: true;
+  tag: typeof FRAGMENT;
+  props: undefined;
+  children: ForRenderListExpression;
+  patchFlag: PatchFlags;
+  disableTracking: boolean;
 }
 
 export interface DirectiveArguments extends ArrayExpression {

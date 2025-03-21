@@ -17,6 +17,7 @@ import {
   createVNodeCall,
   DirectiveNode,
   ElementNode,
+  ElementTypes,
   ExpressionNode,
   getVNodeBlockHelper,
   getVNodeHelper,
@@ -35,6 +36,7 @@ import { defaultOnError, defaultOnWarn } from "./errors.js";
 import { TransformOptions } from "./options.js";
 import { FRAGMENT, OPEN_BLOCK, TO_DISPLAY_STRING } from "./runtimeHelpers.js";
 import { cacheStatic, isSingleElementRoot } from "./transforms/cacheStatic.js";
+import { isVSlot } from "./utils.js";
 
 export type NodeTransform = (
   node: RootNode | TemplateChildNode,
@@ -100,6 +102,12 @@ export interface TransformContext
   // 2.x Compat only
   filters?: Set<string>;
 }
+
+export type StructuralDirectiveTransform = (
+  node: ElementNode,
+  dir: DirectiveNode,
+  context: TransformContext
+) => void | (() => void);
 
 /**
  * 指令變換(click事件,動態props...)
@@ -348,7 +356,7 @@ export function traverseNode(
   const exitFns = [];
 
   for (let i = 0; i < nodeTransforms.length; i++) {
-    // 整理transform方法
+    // 呼叫transform方法
     const onExit = nodeTransforms[i](node, context);
 
     if (onExit) {
@@ -366,7 +374,7 @@ export function traverseNode(
       node = context.currentNode;
     }
   }
-  // console.log("node", node);
+  console.log("node", node.type);
 
   switch (node.type) {
     case NodeTypes.INTERPOLATION:
@@ -387,4 +395,39 @@ export function traverseNode(
     // 執行transform方法
     exitFns[i]();
   }
+}
+
+export function createStructuralDirectiveTransform(
+  name: string | RegExp, // v-for v-if....
+  fn: StructuralDirectiveTransform // transformFor..
+): NodeTransform {
+  const matches = isString(name)
+    ? (n: string) => n === name
+    : (n: string) => name.test(n);
+
+  return (node, context) => {
+    if (node.type === NodeTypes.ELEMENT) {
+      const { props } = node;
+      // template 跟 slot 不執行v-for
+      if (node.tagType === ElementTypes.TEMPLATE && props.some(isVSlot)) {
+        return;
+      }
+      console.log("props", props);
+
+      const exitFns = [];
+      for (let i = 0; i < props.length; i++) {
+        const prop = props[i];
+        // 屬性是否為指令
+        if (prop.type === NodeTypes.DIRECTIVE && matches(prop.name)) {
+          props.splice(i, 1);
+          i--;
+          const onExit = fn(node, prop, context);
+          if (onExit) {
+            exitFns.push(onExit);
+          }
+        }
+      }
+      return exitFns;
+    }
+  };
 }

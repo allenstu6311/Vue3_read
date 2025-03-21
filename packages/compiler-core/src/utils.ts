@@ -1,4 +1,10 @@
-import { JSChildNode, NodeTypes, SimpleExpressionNode } from "./ast.js";
+import {
+  DirectiveNode,
+  ElementNode,
+  JSChildNode,
+  NodeTypes,
+  SimpleExpressionNode,
+} from "./ast.js";
 
 /**
  * :class="className" || class="className"
@@ -12,3 +18,9 @@ const nonIdentifierRE = /^\d|[^\$\w\xA0-\uFFFF]/;
  */
 export const isSimpleIdentifier = (name: string): boolean =>
   !nonIdentifierRE.test(name);
+
+export function isVSlot(p: ElementNode["props"][0]): p is DirectiveNode {
+  return p.type === NodeTypes.DIRECTIVE && p.name === "slot";
+}
+
+export const forAliasRE: RegExp = /([\s\S]*?)\s+(?:in|of)\s+(\S[\s\S]*)/;
