@@ -1,6 +1,6 @@
 tsc -w 並開啟根目錄下的 index.html
 
-處理v-for processFor
+處理v-for genCallExpression
 
 
 1.v-model
@@ -19,6 +19,7 @@ TConstructor
 onst raw = observed && (observed as Target)[ReactiveFlags.RAW];
 0 extends 1
 T extends unknown
+T extends CallExpression["callee"]
 
 (js)
 instanceof

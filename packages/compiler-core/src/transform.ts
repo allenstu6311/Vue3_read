@@ -77,6 +77,11 @@ export interface TransformContext
   childIndex: number;
   currentNode: RootNode | TemplateChildNode | null;
   inVOnce: boolean;
+  /**
+   * 記錄模板編譯過程中使用的函數，最後會直接被
+   * const { XX } = _Vue 導入
+   * 可閱讀 genFunctionPreamble 函數
+   */
   helper<T extends symbol>(name: T): T;
   removeHelper<T extends symbol>(name: T): void;
   helperString(name: symbol): string;
@@ -209,10 +214,6 @@ export function createTransformContext(
     inVOnce: false,
 
     // methods
-    /**
-     * 記錄模板編譯過程中所需的工具函數（helpers），並增加該 helper 的引用次數。
-     * 果該 helper 尚未被引用，則初始化它的引用次數為 1。
-     */
     helper(name) {
       const count = context.helpers.get(name) || 0;
       context.helpers.set(name, count + 1);
@@ -234,7 +235,10 @@ export function createTransformContext(
       }
     },
     helperString(): any {},
-    replaceNode() {},
+    replaceNode(node) {
+      // 原始節點一開始會被當作普通元素處理，確定具有結構性指令（如 v-for、v-if）後，會替換為對應的 AST 節點（如 ForNode / IfNode）
+      context.parent!.children[context.childIndex] = context.currentNode = node;
+    },
     removeNode() {},
     onNodeRemoved: NOOP,
     addIdentifiers() {},
@@ -266,9 +270,11 @@ export function createTransformContext(
   return context;
 }
 
-export function transform(root: RootNode, options: TransformOptions): void {
+export function transform(
+  root: RootNode, //ast
+  options: TransformOptions
+): void {
   const context = createTransformContext(root, options);
-
   traverseNode(root, context);
 
   if (options.hoistStatic) {
@@ -292,6 +298,7 @@ export function transform(root: RootNode, options: TransformOptions): void {
 function createRootCodegen(root: RootNode, context: TransformContext) {
   const { helper } = context;
   const { children } = root;
+  console.log("root", root);
   if (children.length === 1) {
     const child = children[0];
 
@@ -302,6 +309,8 @@ function createRootCodegen(root: RootNode, context: TransformContext) {
       }
 
       root.codegenNode = codegenNode;
+    } else {
+      root.codegenNode = child;
     }
   } else if (children.length > 1) {
     let patchFlag = PatchFlags.STABLE_FRAGMENT;
@@ -374,7 +383,6 @@ export function traverseNode(
       node = context.currentNode;
     }
   }
-  console.log("node", node.type);
 
   switch (node.type) {
     case NodeTypes.INTERPOLATION:
@@ -383,6 +391,7 @@ export function traverseNode(
       break;
     case NodeTypes.ELEMENT:
     case NodeTypes.ROOT:
+    case NodeTypes.FOR:
       traverseChildren(node, context);
       break;
     default:
@@ -404,7 +413,6 @@ export function createStructuralDirectiveTransform(
   const matches = isString(name)
     ? (n: string) => n === name
     : (n: string) => name.test(n);
-
   return (node, context) => {
     if (node.type === NodeTypes.ELEMENT) {
       const { props } = node;
@@ -412,7 +420,6 @@ export function createStructuralDirectiveTransform(
       if (node.tagType === ElementTypes.TEMPLATE && props.some(isVSlot)) {
         return;
       }
-      console.log("props", props);
 
       const exitFns = [];
       for (let i = 0; i < props.length; i++) {
@@ -422,6 +429,8 @@ export function createStructuralDirectiveTransform(
           props.splice(i, 1);
           i--;
           const onExit = fn(node, prop, context);
+          console.log("onExit", onExit);
+
           if (onExit) {
             exitFns.push(onExit);
           }

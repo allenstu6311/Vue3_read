@@ -426,6 +426,10 @@ function genCacheExpression(node: CacheExpression, context: CodegenContext) {
   push(`)`);
 }
 
+function genCallExpression(node: CallExpression, context: CodegenContext) {
+  // 看到這裡
+}
+
 function genNode(node: CodegenNode | symbol | string, context: CodegenContext) {
   if (isString(node)) {
     context.push(node, NewlineType.Unknown);
@@ -435,9 +439,11 @@ function genNode(node: CodegenNode | symbol | string, context: CodegenContext) {
     context.push(context.helper(node));
     return;
   }
+  console.log("genNode node", node);
 
   switch (node.type) {
     case NodeTypes.ELEMENT:
+    case NodeTypes.FOR:
       genNode(node.codegenNode!, context);
       break;
     case NodeTypes.TEXT:
@@ -454,6 +460,9 @@ function genNode(node: CodegenNode | symbol | string, context: CodegenContext) {
       break;
     case NodeTypes.VNODE_CALL:
       genVNodeCall(node, context);
+      break;
+    case NodeTypes.JS_CALL_EXPRESSION:
+      genCallExpression(node, context);
       break;
     case NodeTypes.JS_CACHE_EXPRESSION:
       genCacheExpression(node, context);

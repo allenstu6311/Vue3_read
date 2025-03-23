@@ -194,7 +194,7 @@ export interface CallExpression extends Node {
   )[];
 }
 
-export type ParentNode = RootNode | ElementNode;
+export type ParentNode = RootNode | ElementNode | ForNode;
 
 export interface RootNode extends Node {
   type: NodeTypes.ROOT;
@@ -347,7 +347,8 @@ export type TemplateChildNode =
   | InterpolationNode
   | TextCallNode
   | CompoundExpressionNode
-  | TemplateNode;
+  | TemplateNode
+  | ForNode;
 
 export interface TextCallNode extends Node {
   type: NodeTypes.TEXT_CALL;
@@ -374,12 +375,16 @@ export interface BaseElementNode extends Node {
   children: TemplateChildNode[];
   isSelfClosing?: boolean;
   innerLoc?: SourceLocation; // only for SFC root level elements
-  // codegenNode: any;
 }
 
 export interface PlainElementNode extends BaseElementNode {
   tagType: ElementTypes.ELEMENT;
-  codegenNode: undefined | VNodeCall | SimpleExpressionNode | CacheExpression;
+  codegenNode:
+    | VNodeCall
+    | SimpleExpressionNode // when hoisted
+    | CacheExpression // when cached by v-once
+    // | MemoExpression // when cached by v-memo
+    | undefined;
   ssrCodegenNode?: TemplateLiteral;
 }
 
@@ -473,7 +478,39 @@ export type TemplateTextChildNode =
 
 export type SlotsExpression = {};
 
-export interface FunctionExpression extends Node {}
+export interface ReturnStatement extends Node {
+  type: NodeTypes.JS_RETURN_STATEMENT;
+  returns: TemplateChildNode | TemplateChildNode[] | JSChildNode;
+}
+export interface IfStatement extends Node {
+  type: NodeTypes.JS_IF_STATEMENT;
+  test: ExpressionNode;
+  consequent: BlockStatement;
+  alternate: IfStatement | BlockStatement | ReturnStatement | undefined;
+}
+
+export interface BlockStatement extends Node {
+  type: NodeTypes.JS_BLOCK_STATEMENT;
+  body: (JSChildNode | IfStatement)[];
+}
+
+export interface FunctionExpression extends Node {
+  type: NodeTypes.JS_FUNCTION_EXPRESSION;
+  params: ExpressionNode | string | (ExpressionNode | string)[] | undefined;
+  returns?: TemplateChildNode | TemplateChildNode[] | JSChildNode;
+  body?: BlockStatement | IfStatement;
+  newline: boolean;
+  /**
+   * This flag is for codegen to determine whether it needs to generate the
+   * withScopeId() wrapper
+   */
+  isSlot: boolean;
+  /**
+   * __COMPAT__ only, indicates a slot function that should be excluded from
+   * the legacy $scopedSlots instance property.
+   */
+  isNonScopedSlot?: boolean;
+}
 
 export interface ForIteratorExpression extends FunctionExpression {
   returns?: BlockCodegenNode;
@@ -669,6 +706,9 @@ export function createVNodeCall(
   };
 }
 
+/**
+ * 建立一個「呼叫某個函式」的 AST 節點
+ */
 export function createCallExpression<T extends CallExpression["callee"]>(
   callee: T,
   args: CallExpression["arguments"] = [],
@@ -721,5 +761,25 @@ export function createCacheExpression(
     needPauseTracking: needPauseTracking,
     needArraySpread: false,
     loc: locStub,
+  };
+}
+
+/**
+ * 建立一個「函式表達式」的 AST 節點
+ */
+export function createFunctionExpression(
+  params: FunctionExpression["params"],
+  returns: FunctionExpression["returns"] = undefined,
+  newline: boolean = false,
+  isSlot: boolean = false,
+  loc: SourceLocation = locStub
+): FunctionExpression {
+  return {
+    type: NodeTypes.JS_FUNCTION_EXPRESSION,
+    params,
+    returns,
+    newline,
+    isSlot,
+    loc,
   };
 }
