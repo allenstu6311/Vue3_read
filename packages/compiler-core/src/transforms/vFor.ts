@@ -34,6 +34,7 @@ export const transformFor: NodeTransform = createStructuralDirectiveTransform(
   (node, dir, context) => {
     const { helper, removeHelper } = context;
     return processFor(node, dir, context, (forNode) => {
+      // 加入v-for渲染函數代碼
       const renderExp = createCallExpression(helper(RENDER_LIST), [
         forNode.source,
       ]) as ForRenderListExpression;
@@ -103,11 +104,6 @@ export const transformFor: NodeTransform = createStructuralDirectiveTransform(
           if (memo) {
             //v-memo
           } else {
-            console.log(
-              "createForLoopParams(forNode.parseResult)",
-              createForLoopParams(forNode.parseResult)
-            );
-
             renderExp.arguments.push(
               createFunctionExpression(
                 createForLoopParams(forNode.parseResult),

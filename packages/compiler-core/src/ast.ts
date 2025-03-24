@@ -153,13 +153,14 @@ export enum ConstantTypes {
 }
 
 export type JSChildNode =
-  | VNodeCall
-  | SimpleExpressionNode
-  | ArrayExpression
-  | ExpressionNode
-  | CallExpression
-  | ObjectExpression
-  | CacheExpression;
+  | VNodeCall // 處理像 h() 的虛擬 DOM 節點呼叫
+  | SimpleExpressionNode // 字面量或簡單變數表達式
+  | ArrayExpression // 陣列表達式，如 [a, b, c]
+  | ExpressionNode // 一般表達式，可能是 Simple 或 Compound
+  | CallExpression // 呼叫表達式，如 fn(a, b)
+  | ObjectExpression // 物件表達式，如 { key: value }
+  | CacheExpression // 用來做 patch 優化的快取節點（`_cache`）
+  | FunctionExpression; // 函數表達式，如 () => {...}
 
 /**
  * 代碼在文檔中的具體位置

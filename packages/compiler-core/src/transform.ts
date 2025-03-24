@@ -298,7 +298,7 @@ export function transform(
 function createRootCodegen(root: RootNode, context: TransformContext) {
   const { helper } = context;
   const { children } = root;
-  console.log("root", root);
+
   if (children.length === 1) {
     const child = children[0];
 
@@ -429,7 +429,6 @@ export function createStructuralDirectiveTransform(
           props.splice(i, 1);
           i--;
           const onExit = fn(node, prop, context);
-          console.log("onExit", onExit);
 
           if (onExit) {
             exitFns.push(onExit);

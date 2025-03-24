@@ -3,6 +3,7 @@ import {
   CacheExpression,
   CallExpression,
   ExpressionNode,
+  FunctionExpression,
   getVNodeBlockHelper,
   getVNodeHelper,
   InterpolationNode,
@@ -26,6 +27,9 @@ import { isSimpleIdentifier } from "./utils.js";
 const PURE_ANNOTATION = `/*@__PURE__*/`;
 
 type CodegenNode = TemplateChildNode | JSChildNode;
+/**
+ * renderList => _renderList
+ */
 const aliasHelper = (s: symbol) => `${helperNameMap[s]}: _${helperNameMap[s]}`;
 
 function createCodegenContext(
@@ -115,7 +119,7 @@ export function generate(
     ssr,
   } = context;
 
-  const helpers = Array.from(ast.helpers);
+  const helpers = Array.from(ast.helpers); // 會使用到的渲染工具
   const hasHelpers = helpers.length > 0;
   const useWithBlock = !prefixIdentifiers && mode !== "module";
   const genScopeId = false;
@@ -145,6 +149,7 @@ export function generate(
     // function mode const declarations should be inside with block
     // also they should be renamed to avoid collision with user properties
     if (hasHelpers) {
+      // const { renderList: _renderList, Fragment: _Fragment } = _Vue
       push(
         `const { ${helpers.map(aliasHelper).join(", ")} } = _Vue\n`,
         NewlineType.End
@@ -426,8 +431,56 @@ function genCacheExpression(node: CacheExpression, context: CodegenContext) {
   push(`)`);
 }
 
+// JavaScript
 function genCallExpression(node: CallExpression, context: CodegenContext) {
-  // 看到這裡
+  const { push, helper, pure } = context;
+  const callee = isString(node.callee) ? node.callee : helper(node.callee);
+  if (pure) {
+    push(PURE_ANNOTATION);
+  }
+  push(callee + `(`, NewlineType.None, node);
+  genNodeList(node.arguments, context);
+  push(`)`);
+}
+
+// 處理內容: v-for,
+function genFunctionExpression(
+  node: FunctionExpression,
+  context: CodegenContext
+) {
+  const { push, indent, deindent } = context;
+  const { params, returns, body, newline, isSlot } = node;
+
+  push(`(`);
+
+  if (isArray(params)) {
+    genNodeList(params, context);
+  } else if (params) {
+    genNode(params, context);
+  }
+
+  push(`)=>`);
+
+  if (newline || body) {
+    push(`{`);
+    indent();
+  }
+
+  if (returns) {
+    if (newline) {
+      push(`return `);
+    }
+
+    if (isArray(returns)) {
+      genNodeListAsArray(returns, context);
+    } else {
+      genNode(returns, context);
+    }
+  }
+  if (newline || body) {
+    deindent();
+    push(`}`);
+  }
 }
 
 function genNode(node: CodegenNode | symbol | string, context: CodegenContext) {
@@ -466,6 +519,9 @@ function genNode(node: CodegenNode | symbol | string, context: CodegenContext) {
       break;
     case NodeTypes.JS_CACHE_EXPRESSION:
       genCacheExpression(node, context);
+      break;
+    case NodeTypes.JS_FUNCTION_EXPRESSION:
+      genFunctionExpression(node, context);
       break;
     default:
       break;

@@ -1,12 +1,14 @@
 tsc -w 並開啟根目錄下的 index.html
 
-處理v-for genCallExpression
+處理v-for renderList
 
 
 1.v-model
 2.v-for
 3.reactive
 
+#render方法都放置在
+C:\Users\stual\OneDrive\桌面\read\vue3\write_code\packages\runtime-core\src\index.ts
 
 #需要了解
 
