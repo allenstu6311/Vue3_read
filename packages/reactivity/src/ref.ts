@@ -63,6 +63,8 @@ function createRef(rawValue: unknown, shallow: boolean) {
 
 export type UnwrapRef<T> = {};
 
+export type UnwrapRefSimple<T> = any;
+
 class RefImpl<T = any> {
   _value: T;
   private _rawValue: T;

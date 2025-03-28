@@ -492,7 +492,7 @@ function genNode(node: CodegenNode | symbol | string, context: CodegenContext) {
     context.push(context.helper(node));
     return;
   }
-  console.log("genNode node", node);
+  // console.log("genNode node", node);
 
   switch (node.type) {
     case NodeTypes.ELEMENT:

@@ -1,10 +1,7 @@
 tsc -w 並開啟根目錄下的 index.html
 
-處理v-for renderList
+搞懂 v-model transformModel
 
-
-1.v-model
-2.v-for
 3.reactive
 
 #render方法都放置在

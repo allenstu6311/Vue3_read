@@ -614,6 +614,7 @@ function baseCreateRenderer(
         );
       }
     };
+
     // create reactive effect for rendering
     instance.scope.on();
     const effect = (instance.effect = new ReactiveEffect(componentUpdateFn));

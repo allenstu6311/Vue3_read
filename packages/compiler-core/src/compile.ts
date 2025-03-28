@@ -6,6 +6,7 @@ import { baseParse } from "./parser.js";
 import { DirectiveTransform, NodeTransform, transform } from "./transform.js";
 import { transformElement } from "./transforms/transformElement.js";
 import { transformFor } from "./transforms/vFor.js";
+import { transformModel } from "./transforms/vModel.js";
 import { transformOn } from "./transforms/vOn.js";
 
 /* v8 ignore stop */
@@ -19,7 +20,13 @@ export type TransformPreset = [
 export function getBaseTransformPreset(
   prefixIdentifiers?: boolean
 ): TransformPreset {
-  return [[transformElement, transformFor], { on: transformOn }];
+  return [
+    [transformElement, transformFor],
+    {
+      on: transformOn,
+      model: transformModel,
+    },
+  ];
 }
 
 export function baseCompile(
@@ -47,6 +54,6 @@ export function baseCompile(
     })
   );
 
-  return generate(ast, resolvedOptions);
-  // return null as any;
+  // return generate(ast, resolvedOptions);
+  return null as any;
 }

@@ -1,4 +1,5 @@
 import { ComputedRefImpl } from "./computed.js";
+import { TrackOpTypes } from "./constants.js";
 import {
   activeSub,
   DebuggerEventExtraInfo,
@@ -127,7 +128,7 @@ export class Dep {
 
   constructor(public computed?: ComputedRefImpl | undefined) {}
   /**
-   * 當 `Subscriber` 讀取 `Dep` 時，會呼叫 `track()
+   * track 原則上只有在初始化觸發一次，目的是建立「誰依賴誰」的連接，讓後續的 trigger 能 * 夠通知到對的人。
    */
   track(debugInfo?: DebuggerEventExtraInfo): Link | undefined {
     if (!activeSub || !shouldTrack || activeSub === this.computed) {
@@ -194,3 +195,42 @@ function addSub(link: Link) {
  * @param key - Can be used to target a specific reactive property in the target object.
  */
 export function trigger() {}
+
+const __DEV__ = true;
+
+export const targetMap: WeakMap<object, KeyToDepMap> = new WeakMap();
+
+export const ARRAY_ITERATE_KEY: unique symbol = Symbol(
+  __DEV__ ? "Array iterate" : ""
+);
+
+/**
+ * 收集對 reactive 屬性的依賴。
+ * 如果目前有正在執行的副作用函數（activeSub），
+ * 則將它記錄到對應屬性的依賴集合中，方便未來變動時觸發更新。
+ *
+ * @param target - 被讀取的 reactive 物件
+ * @param type - 存取類型（get/has/iterate）
+ * @param key - 被讀取的屬性 key
+ */
+export function track(target: object, type: TrackOpTypes, key: unknown): void {
+  if (shouldTrack && activeSub) {
+    let depsMap = targetMap.get(target);
+    if (!depsMap) {
+      targetMap.set(target, (depsMap = new Map()));
+    }
+    console.log("key =>", key);
+
+    let dep = depsMap.get(key);
+    console.log("dep", dep);
+
+    if (!dep) {
+      depsMap.set(key, (dep = new Dep()));
+      dep.map = depsMap;
+      dep.key = key;
+    }
+    console.log("depsMap", depsMap);
+
+    dep.track();
+  }
+}

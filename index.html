@@ -6,8 +6,9 @@
     <title>Vue3 Write</title>
   </head>
   <body>
+    <!-- <div class="item" v-for="item in data" :key="item">{{ item }}</div> -->
     <div id="app">
-      <div class="item" v-for="item in data" :key="item">{{ item }}</div>
+      <input type="text" v-model="test">
     </div>
 
       <script
@@ -24,7 +25,10 @@
             const data = ref([1,2,3])
 
             function change(){    
-              test.value++
+              // test.value++
+              data.value.push(1);
+              console.log('data',data.value);
+              
               // console.log('change',test.value);
             }
 

@@ -2,6 +2,7 @@ import { isObject, toRawType } from "../../shared/src/general.js";
 import { mutableHandlers } from "./baseHandlers.js";
 import { mutableCollectionHandlers } from "./collectionHandlers.js";
 import { ReactiveFlags } from "./constants.js";
+import { Ref, UnwrapRefSimple } from "./ref.js";
 
 export interface Target {
   [ReactiveFlags.SKIP]?: boolean;
@@ -11,7 +12,7 @@ export interface Target {
   [ReactiveFlags.RAW]?: any;
 }
 
-export type UnwrapNestedRefs<T> = {};
+export type UnwrapNestedRefs<T> = T extends Ref ? T : UnwrapRefSimple<T>;
 declare const ReactiveMarkerSymbol: unique symbol;
 export interface ReactiveMarker {
   [ReactiveMarkerSymbol]?: void;
@@ -90,11 +91,13 @@ function createReactiveObject(
 ) {
   if (!isObject(target)) return target;
   const targetType = getTargetType(target);
+  console.log("target", target);
 
   const proxy = new Proxy(
     target,
     targetType === TargetType.COLLECTION ? collectionHandlers : baseHandlers
   );
+
   proxyMap.set(target, proxy);
   return proxy;
 }
@@ -106,8 +109,9 @@ function createReactiveObject(
  *
  * @param value - The value for which a reactive proxy shall be created.
  */
-export const toReactive = <T extends unknown>(value: T): T =>
-  isObject(value) ? (reactive(value) as T) : value;
+export const toReactive = <T extends unknown>(value: T): T => {
+  return isObject(value) ? reactive(value) : value;
+};
 
 /**
  * 判断一个对象是否是通过 reactive 或 shallowReactive 创建的响应式对
@@ -124,9 +128,18 @@ export function isReactive(value: unknown): boolean {
   if (isReadonly(value)) {
     return isReactive((value as Target)[ReactiveFlags.RAW]);
   }
+
+  // 將資料加上key(ReactiveFlags.IS_REACTIVE)後續判斷會使用到
   return !!(value && (value as Target)[ReactiveFlags.IS_REACTIVE]);
 }
 
 export function isReadonly(value: unknown): boolean {
   return !!(value && (value as Target)[ReactiveFlags.IS_READONLY]);
+}
+
+/**
+ * value有無ReactiveFlags.IS_SHALLOW的key(__v_isShallow)
+ */
+export function isShallow(value: unknown): boolean {
+  return !!(value && (value as Target)[ReactiveFlags.IS_SHALLOW]);
 }
