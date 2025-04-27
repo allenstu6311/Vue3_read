@@ -1,5 +1,5 @@
 import { CompilerOptions } from "./../../compiler-core/src/options.js";
-import { compile } from "../../compiler-dom/index.js";
+import { compile } from "../../compiler-dom/src/index.js";
 import { registerRuntimeCompiler } from "../../runtime-core/src/component.js";
 import { RenderFunction } from "../../runtime-core/src/componentOptions.js";
 import {

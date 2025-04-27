@@ -1,6 +1,6 @@
 tsc -w 並開啟根目錄下的 index.html
 
-搞懂 v-model transformModel
+看到compile-dom的transformModel
 
 3.reactive
 

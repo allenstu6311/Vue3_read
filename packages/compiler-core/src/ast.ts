@@ -784,3 +784,17 @@ export function createFunctionExpression(
     loc,
   };
 }
+
+/**
+ * 註冊v-model事件
+ */
+export function createCompoundExpression(
+  children: CompoundExpressionNode["children"],
+  loc: SourceLocation = locStub
+): CompoundExpressionNode {
+  return {
+    type: NodeTypes.COMPOUND_EXPRESSION,
+    loc,
+    children,
+  };
+}

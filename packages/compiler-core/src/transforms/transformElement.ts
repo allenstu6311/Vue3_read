@@ -197,7 +197,7 @@ export function buildProps(
 
       const directiveTransform = context.directiveTransforms[name];
       if (directiveTransform) {
-        // has built-in directive transform.
+        // 設置v-model or event
         const { props, needRuntime } = directiveTransform(prop, node, context);
         props.forEach(analyzePatchFlag);
 

@@ -32,8 +32,9 @@ export function renderComponentRoot(
 
     // debugger;
 
-    // 生成vnode
+    // 標準化vnode
     result = normalizeVNode(
+      // 呼叫渲染函數，生成VNode
       render!.call(
         thisProxy,
         proxyToUse!,
