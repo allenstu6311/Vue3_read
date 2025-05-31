@@ -322,24 +322,28 @@ export interface Property extends Node {
 }
 
 export interface DirectiveNode extends Node {
+  // 節點類型，固定為 NodeTypes.DIRECTIVE，代表這是一個指令節點
   type: NodeTypes.DIRECTIVE;
-  /**
-   * the normalized name without prefix or shorthands, e.g. "bind", "on"
-   */
+
+  // 標準化後的指令名稱（去除前綴與簡寫），例如 "bind"、"on"
   name: string;
-  /**
-   * the raw attribute name, preserving shorthand, and including arg & modifiers
-   * this is only used during parse.
-   */
+
+  // 原始屬性名稱，保留簡寫形式，並包含參數與修飾符（僅於 parse 階段使用）
   rawName?: string;
+
+  // 指令的值（表達式節點），例如 v-bind="foo" 中的 "foo"
   exp: ExpressionNode | undefined;
+
+  // 指令的參數（表達式節點），例如 v-bind:href="url" 中的 "href"
   arg: ExpressionNode | undefined;
+
+  // 指令修飾符清單，例如 v-on:click.prevent 中的 ["prevent"]
   modifiers: SimpleExpressionNode[];
-  /**
-   * optional property to cache the expression parse result for v-for
-   */
+
+  // （可選）用於快取 v-for 表達式的解析結果，加速後續處理
   forParseResult?: ForParseResult;
 }
+
 
 export type TemplateChildNode =
   | ElementNode
@@ -547,6 +551,10 @@ export interface DirectiveArgumentNode extends ArrayExpression {
     | [string, ExpressionNode]
     | [string, ExpressionNode, ExpressionNode]
     | [string, ExpressionNode, ExpressionNode, ObjectExpression];
+}
+
+export interface DirectiveArguments extends ArrayExpression {
+  elements: DirectiveArgumentNode[]
 }
 /**
  * 渲染函式的核心
@@ -798,3 +806,16 @@ export function createCompoundExpression(
     children,
   };
 }
+
+export function createArrayExpression(
+  elements: ArrayExpression['elements'],
+  loc: SourceLocation = locStub,
+): ArrayExpression {
+  return {
+    type: NodeTypes.JS_ARRAY_EXPRESSION,
+    loc,
+    elements,
+  }
+}
+
+

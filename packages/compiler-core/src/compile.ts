@@ -54,6 +54,6 @@ export function baseCompile(
     })
   );
 
-  // return generate(ast, resolvedOptions);
+  return generate(ast, resolvedOptions);
   return null as any;
 }

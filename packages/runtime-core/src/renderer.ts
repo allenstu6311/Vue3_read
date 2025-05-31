@@ -213,10 +213,7 @@ function baseCreateRenderer(
     if (n1 === n2) {
       return;
     }
-
     const { type, ref, shapeFlag } = n2;
-    console.log("type", type);
-    console.log("shapeFlag", shapeFlag);
     switch (type) {
       case Text:
         processText(n1, n2, container, anchor);

@@ -204,8 +204,6 @@ export function createAppAPI<HostElement>(
         isHydrate?: boolean,
         namespace?: boolean | ElementNamespace
       ): any {
-        console.log("mount");
-
         if (!isMounted) {
           const vnode = app._ceVNode || createVNode(rootComponent, rootProps);
           vnode.appContext = context;

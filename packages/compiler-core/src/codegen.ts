@@ -1,7 +1,9 @@
 import { isArray, isString, isSymbol } from "../../shared/src/general.js";
 import {
+  ArrayExpression,
   CacheExpression,
   CallExpression,
+  CompoundExpressionNode,
   ExpressionNode,
   FunctionExpression,
   getVNodeBlockHelper,
@@ -21,6 +23,7 @@ import {
   helperNameMap,
   OPEN_BLOCK,
   TO_DISPLAY_STRING,
+  WITH_DIRECTIVES,
 } from "./runtimeHelpers.js";
 import { isSimpleIdentifier } from "./utils.js";
 
@@ -274,11 +277,14 @@ function genObjectExpression(node: ObjectExpression, context: CodegenContext) {
   }
   const multilines = properties.length > 1;
   push(multilines ? `{` : `{ `);
-
+  // console.log('properties',properties);
+  
   for (let i = 0; i < properties.length; i++) {
     const { key, value } = properties[i];
     genExpressionAsPropertyKey(key, context); //key: class
     push(":");
+    // console.log('value',value.type);
+    
     genNode(value, context); // value:"className"
     if (i < properties.length - 1) {
       // will only reach this if it's multilines
@@ -342,6 +348,10 @@ function genVNodeCall(node: VNodeCall, context: CodegenContext) {
 
   let patchFlagString = String(patchFlag); //1
 
+  if (directives) {
+    push(helper(WITH_DIRECTIVES) + `(`)
+  }
+
   if (isBlock) {
     push(`(${helper(OPEN_BLOCK)}(${disableTracking ? `true` : ``}), `);
   }
@@ -360,6 +370,12 @@ function genVNodeCall(node: VNodeCall, context: CodegenContext) {
   if (isBlock) {
     push(`)`);
   }
+
+  if (directives) {
+    push(`, `)
+    genNode(directives, context)
+    push(`)`)
+  }
 }
 
 function genNullableArgs(args: any[]): CallExpression["arguments"] {
@@ -376,10 +392,12 @@ function genNodeList(
   multilines: boolean = false,
   comma: boolean = true
 ) {
+  console.log('nodes',nodes);
+  
   const { push, newline } = context;
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
-
+ 
     if (isString(node)) {
       push(node, NewlineType.Unknown);
     } else if (isArray(node)) {
@@ -483,6 +501,24 @@ function genFunctionExpression(
   }
 }
 
+function genCompoundExpression(
+  node: CompoundExpressionNode,
+  context: CodegenContext,
+) {
+  for (let i = 0; i < node.children!.length; i++) {
+    const child = node.children![i]
+    if (isString(child)) {
+      context.push(child, NewlineType.Unknown)
+    } else {      
+      genNode(child, context)
+    }
+  }
+}
+
+function genArrayExpression(node: ArrayExpression, context: CodegenContext) {
+  genNodeListAsArray(node.elements as CodegenNode[], context)
+}
+
 function genNode(node: CodegenNode | symbol | string, context: CodegenContext) {
   if (isString(node)) {
     context.push(node, NewlineType.Unknown);
@@ -492,7 +528,7 @@ function genNode(node: CodegenNode | symbol | string, context: CodegenContext) {
     context.push(context.helper(node));
     return;
   }
-  // console.log("genNode node", node);
+  console.log('node', node);
 
   switch (node.type) {
     case NodeTypes.ELEMENT:
@@ -508,9 +544,15 @@ function genNode(node: CodegenNode | symbol | string, context: CodegenContext) {
     case NodeTypes.INTERPOLATION:
       genInterpolation(node, context);
       break;
+    case NodeTypes.COMPOUND_EXPRESSION:
+      genCompoundExpression(node, context)
+      break
     case NodeTypes.JS_OBJECT_EXPRESSION:
       genObjectExpression(node, context);
       break;
+    case NodeTypes.JS_ARRAY_EXPRESSION:
+      genArrayExpression(node, context)
+      break
     case NodeTypes.VNODE_CALL:
       genVNodeCall(node, context);
       break;

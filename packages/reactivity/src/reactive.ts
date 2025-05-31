@@ -91,8 +91,6 @@ function createReactiveObject(
 ) {
   if (!isObject(target)) return target;
   const targetType = getTargetType(target);
-  console.log("target", target);
-
   const proxy = new Proxy(
     target,
     targetType === TargetType.COLLECTION ? collectionHandlers : baseHandlers

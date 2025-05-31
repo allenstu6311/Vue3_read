@@ -1,3 +1,4 @@
+import { DirectiveArguments } from "../../compiler-core/src/ast.js"
 import { VNode } from "./vnode.js"
 
 export type DirectiveHook<
@@ -56,3 +57,12 @@ export type Directive<
 > =
   | ObjectDirective<HostElement, Value, Modifiers, Arg>
 //   | FunctionDirective<HostElement, Value, Modifiers, Arg>
+
+export function withDirectives<T extends VNode>(
+  vnode: T,
+  directives: DirectiveArguments,
+): T {
+  console.log('withDirectives');
+  
+  return null as any
+}

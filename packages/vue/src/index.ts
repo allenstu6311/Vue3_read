@@ -32,6 +32,10 @@ function compileToFunction(
     options
   );
 
+  if (!opts.isCustomElement && typeof customElements !== 'undefined') {
+    opts.isCustomElement = tag => !!customElements.get(tag) //判斷是否為自訂元件
+  }
+
   const { code } = compile(template, opts);
   const render = new Function("Vue", code)(runtimeDom);
 

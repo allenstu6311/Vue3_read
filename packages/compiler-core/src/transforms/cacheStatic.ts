@@ -75,13 +75,15 @@ function walk(
               flag === PatchFlags.NEED_PATCH ||
               flag === PatchFlags.TEXT) &&
             getGeneratedPropsConstantType(child, context) >=
-              ConstantTypes.CAN_CACHE
+            ConstantTypes.CAN_CACHE
           ) {
             const props = getNodeProps(child);
-
             if (props) {
               codegenNode.props = context.hoist(props);
             }
+          }
+          if (codegenNode.dynamicProps) {
+            codegenNode.dynamicProps = context.hoist(codegenNode.dynamicProps)
           }
         }
       }

@@ -55,6 +55,9 @@ export function findDir(
   }
 }
 
+/**
+ * 在 AST 的 ElementNode的props 中搜尋指定名稱的屬性
+ */
 export function findProp(
   node: ElementNode,
   name: string,

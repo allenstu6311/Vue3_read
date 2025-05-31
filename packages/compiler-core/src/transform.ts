@@ -34,7 +34,7 @@ import {
 import { CompilerCompatOptions } from "./compact/compatConfig.js";
 import { defaultOnError, defaultOnWarn } from "./errors.js";
 import { TransformOptions } from "./options.js";
-import { FRAGMENT, OPEN_BLOCK, TO_DISPLAY_STRING } from "./runtimeHelpers.js";
+import { FRAGMENT, helperNameMap, OPEN_BLOCK, TO_DISPLAY_STRING } from "./runtimeHelpers.js";
 import { cacheStatic, isSingleElementRoot } from "./transforms/cacheStatic.js";
 import { isVSlot } from "./utils.js";
 
@@ -234,7 +234,9 @@ export function createTransformContext(
         }
       }
     },
-    helperString(): any {},
+    helperString(name): any {
+       return `_${helperNameMap[context.helper(name)]}`
+    },
     replaceNode(node) {
       // 原始節點一開始會被當作普通元素處理，確定具有結構性指令（如 v-for、v-if）後，會替換為對應的 AST 節點（如 ForNode / IfNode）
       context.parent!.children[context.childIndex] = context.currentNode = node;

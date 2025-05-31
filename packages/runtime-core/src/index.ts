@@ -5,3 +5,4 @@ export { openBlock, createElementBlock, createElementVNode } from "./vnode.js";
 export { toDisplayString } from "../../shared/src/toDisplayString.js";
 export { Fragment } from "./vnode.js";
 export { renderList } from "./helpers/renderList.js";
+export { withDirectives } from './directives.js'

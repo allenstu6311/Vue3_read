@@ -1,13 +1,16 @@
-import { isOn } from "../../../shared/src/general.js";
+import { isOn, isSymbol } from "../../../shared/src/general.js";
 import { PatchFlags } from "../../../shared/src/patchFlags.js";
 import {
+  ArrayExpression,
   CallExpression,
   ConstantTypes,
+  createArrayExpression,
   createCallExpression,
   createObjectExpression,
   createObjectProperty,
   createSimpleExpression,
   createVNodeCall,
+  DirectiveArguments,
   DirectiveNode,
   ElementNode,
   ElementTypes,
@@ -22,6 +25,10 @@ import { NORMALIZE_CLASS, TELEPORT } from "../runtimeHelpers.js";
 import { NodeTransform, TransformContext } from "../transform.js";
 import { isStaticExp } from "../utils.js";
 import { getConstantType } from "./cacheStatic.js";
+
+// some directive transforms (e.g. v-model) may return a symbol for runtime
+// import, which should be used instead of a resolveDirective call.
+const directiveImportMap = new WeakMap<DirectiveNode, symbol>()
 
 /**
  * 轉換 AST 中的元素節點，生成對應的 VNode 代碼。
@@ -73,6 +80,21 @@ export const transformElement: NodeTransform = (node, context) => {
       vnodeProps = propsBuildResult.props;
       patchFlag = propsBuildResult.patchFlag;
       dynamicPropNames = propsBuildResult.dynamicPropNames;
+      const directives = propsBuildResult.directives
+      vnodeDirectives =
+        directives && directives.length
+          ? (createArrayExpression(
+            directives.map(dir => {
+              // console.log('dir', dir, 'context', context);
+              console.log('resukt', buildDirectiveArgs(dir, context));
+
+              return buildDirectiveArgs(dir, context)
+            }),) as DirectiveArguments
+          )
+          : undefined;
+
+
+
     }
 
     // children
@@ -205,6 +227,12 @@ export function buildProps(
         } else {
           properties.push(...props);
         }
+        if (needRuntime) {
+          runtimeDirectives.push(prop)
+          if (isSymbol(needRuntime)) {
+            directiveImportMap.set(prop, needRuntime)
+          }
+        }
       }
     }
   }
@@ -301,6 +329,64 @@ export function buildProps(
     }
     return deduped;
   }
+}
+
+/**
+ * 例:v-mode:foo.bar="value"
+ * 
+ * v-model > directiveFn
+ * value > exp
+ * :foo > arg
+ * .bar > modifiers
+ * @returns [指令函式(directiveFn), 表達式(exp), 參數(args), 修飾符(modifiers)]
+ */
+export function buildDirectiveArgs(
+  dir: DirectiveNode,
+  context: TransformContext,
+): ArrayExpression {
+  const dirArgs: ArrayExpression['elements'] = [];
+  const runtime = directiveImportMap.get(dir)
+  console.log('runtime',runtime);
+  
+  if (runtime) {
+    // built-in directive with runtime
+    dirArgs.push(context.helperString(runtime))
+    console.log('t',context.helperString(runtime));
+    
+  }else{
+
+  }
+
+  const { loc } = dir;
+  if (dir.exp) dirArgs.push(dir.exp);
+  if (dir.arg) {
+    if (!dir.exp) {
+      // 為了確保返回的位置都正確，如果沒有給予
+      dirArgs.push(`void 0`)
+    }
+    dirArgs.push(dir.arg)
+  }
+  if (Object.keys(dir.modifiers).length) {
+    if (!dir.arg) {
+      if (!dir.exp) {
+        dirArgs.push(`void 0`)
+      }
+      dirArgs.push(`void 0`)
+    }    
+    const trueExpression = createSimpleExpression(`true`, false, loc);
+    dirArgs.push(
+      createObjectExpression(
+        dir.modifiers.map(modifier =>
+          createObjectProperty(modifier, trueExpression),
+        ),
+        loc,
+      ),
+    )
+
+  }
+
+    console.log('dirArgs', dirArgs);
+  return createArrayExpression(dirArgs, dir.loc)
 }
 
 function stringifyDynamicPropNames(props: string[]): string {
