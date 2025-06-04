@@ -6,7 +6,10 @@ import {
   createComponentInstance,
   setupComponent,
 } from "./component.js";
-import { SuspenseBoundary } from "./components/Suspense.js";
+import {
+  queueEffectWithSuspense,
+  SuspenseBoundary,
+} from "./components/Suspense.js";
 import { createHydrationFunctions } from "./hydration.js";
 import type {
   VNode,
@@ -17,15 +20,17 @@ import type {
 import {
   cloneIfMounted,
   Fragment,
+  invokeVNodeHook,
   isSameVNodeType,
   normalizeVNode,
   Text,
 } from "./vnode.js";
 import { ReactiveEffect } from "../../reactivity/src/effect.js";
-import { SchedulerJob } from "./scheduler.js";
+import { SchedulerJob, SchedulerJobs } from "./scheduler.js";
 import { isAsyncWrapper } from "./apiAsyncComponent.js";
 import { renderComponentRoot } from "./componentRenderUtils.js";
 import { PatchFlags } from "../../shared/src/patchFlags.js";
+import { invokeDirectiveHook } from "./directives.js";
 
 /**
  * RendererNode 可以是任何物件。在核心渲染邏輯中，它不會被直接操作，
@@ -168,6 +173,15 @@ type PatchBlockChildrenFn = (
   slotScopeIds: string[] | null
 ) => void;
 
+const __FEATURE_SUSPENSE__ = true;
+const __TEST__ = false;
+
+// 宣告變數，明確指定它是一個函式型別
+export let queuePostRenderEffect: (
+  fn: SchedulerJobs,
+  suspense: SuspenseBoundary | null
+) => void = queueEffectWithSuspense;
+
 export function createRenderer<
   HostNode = RendererNode,
   HostElement = RendererElement
@@ -208,7 +222,7 @@ function baseCreateRenderer(
     parentSuspense = null,
     namespace = undefined,
     slotScopeIds = null,
-    optimized = !!n2.dynamicChildren
+    optimized = !!n2?.dynamicChildren
   ) => {
     if (n1 === n2) {
       return;
@@ -262,14 +276,14 @@ function baseCreateRenderer(
   };
 
   const processText: ProcessTextOrCommentFn = (n1, n2, container, anchor) => {
-    // console.log(n1);
-    // if (n1 == null) {
-    //   hostInsert(
-    //     (n2.el = hostCreateText(n2.children as string)),
-    //     container,
-    //     anchor
-    //   );
-    // }
+    if (n1 == null) {
+      hostInsert(
+        (n2.el = hostCreateText(n2.children as string)),
+        container,
+        anchor
+      );
+    } else {
+    }
   };
 
   const processElement = (
@@ -332,6 +346,10 @@ function baseCreateRenderer(
     } else if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
     }
 
+    if (dirs) {
+      invokeDirectiveHook(vnode, null, parentComponent, "created");
+    }
+
     // scopeId
     // setScopeId(el, vnode, vnode.scopeId, slotScopeIds, parentComponent);
 
@@ -343,7 +361,17 @@ function baseCreateRenderer(
       }
     }
 
+    if (dirs) {
+      invokeDirectiveHook(vnode, null, parentComponent, "beforeMount");
+    }
+
     hostInsert(el, container, anchor);
+
+    if ((vnodeHook = props && props.onVnodeMounted) || dirs) {
+      queuePostRenderEffect(() => {
+        dirs && invokeDirectiveHook(vnode, null, parentComponent, "mounted");
+      }, parentSuspense);
+    }
   };
 
   const setScopeId = (
@@ -582,7 +610,6 @@ function baseCreateRenderer(
         const isAsyncWrapperVNode = isAsyncWrapper(initialVNode);
 
         const subTree = (instance.subTree = renderComponentRoot(instance));
-
         patch(
           null,
           subTree,
@@ -626,6 +653,7 @@ function baseCreateRenderer(
 
   const unmount: UnmountFn = () => {};
 
+  let isFlushing = false;
   const render: RootRenderFunction = (vnode, container, namespace) => {
     if (vnode == null) {
       // unmount邏輯
@@ -639,6 +667,10 @@ function baseCreateRenderer(
         null,
         namespace
       );
+    }
+
+    if (!isFlushing) {
+      isFlushing = true;
     }
   };
 

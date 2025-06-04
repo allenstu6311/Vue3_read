@@ -28,7 +28,7 @@ import { getConstantType } from "./cacheStatic.js";
 
 // some directive transforms (e.g. v-model) may return a symbol for runtime
 // import, which should be used instead of a resolveDirective call.
-const directiveImportMap = new WeakMap<DirectiveNode, symbol>()
+const directiveImportMap = new WeakMap<DirectiveNode, symbol>();
 
 /**
  * 轉換 AST 中的元素節點，生成對應的 VNode 代碼。
@@ -80,21 +80,15 @@ export const transformElement: NodeTransform = (node, context) => {
       vnodeProps = propsBuildResult.props;
       patchFlag = propsBuildResult.patchFlag;
       dynamicPropNames = propsBuildResult.dynamicPropNames;
-      const directives = propsBuildResult.directives
+      const directives = propsBuildResult.directives;
       vnodeDirectives =
         directives && directives.length
           ? (createArrayExpression(
-            directives.map(dir => {
-              // console.log('dir', dir, 'context', context);
-              console.log('resukt', buildDirectiveArgs(dir, context));
-
-              return buildDirectiveArgs(dir, context)
-            }),) as DirectiveArguments
-          )
+              directives.map((dir) => {
+                return buildDirectiveArgs(dir, context);
+              })
+            ) as DirectiveArguments)
           : undefined;
-
-
-
     }
 
     // children
@@ -228,9 +222,9 @@ export function buildProps(
           properties.push(...props);
         }
         if (needRuntime) {
-          runtimeDirectives.push(prop)
+          runtimeDirectives.push(prop);
           if (isSymbol(needRuntime)) {
-            directiveImportMap.set(prop, needRuntime)
+            directiveImportMap.set(prop, needRuntime);
           }
         }
       }
@@ -333,7 +327,7 @@ export function buildProps(
 
 /**
  * 例:v-mode:foo.bar="value"
- * 
+ *
  * v-model > directiveFn
  * value > exp
  * :foo > arg
@@ -342,19 +336,15 @@ export function buildProps(
  */
 export function buildDirectiveArgs(
   dir: DirectiveNode,
-  context: TransformContext,
+  context: TransformContext
 ): ArrayExpression {
-  const dirArgs: ArrayExpression['elements'] = [];
-  const runtime = directiveImportMap.get(dir)
-  console.log('runtime',runtime);
-  
+  const dirArgs: ArrayExpression["elements"] = [];
+  const runtime = directiveImportMap.get(dir);
+
   if (runtime) {
     // built-in directive with runtime
-    dirArgs.push(context.helperString(runtime))
-    console.log('t',context.helperString(runtime));
-    
-  }else{
-
+    dirArgs.push(context.helperString(runtime));
+  } else {
   }
 
   const { loc } = dir;
@@ -362,31 +352,29 @@ export function buildDirectiveArgs(
   if (dir.arg) {
     if (!dir.exp) {
       // 為了確保返回的位置都正確，如果沒有給予
-      dirArgs.push(`void 0`)
+      dirArgs.push(`void 0`);
     }
-    dirArgs.push(dir.arg)
+    dirArgs.push(dir.arg);
   }
   if (Object.keys(dir.modifiers).length) {
     if (!dir.arg) {
       if (!dir.exp) {
-        dirArgs.push(`void 0`)
+        dirArgs.push(`void 0`);
       }
-      dirArgs.push(`void 0`)
-    }    
+      dirArgs.push(`void 0`);
+    }
     const trueExpression = createSimpleExpression(`true`, false, loc);
     dirArgs.push(
       createObjectExpression(
-        dir.modifiers.map(modifier =>
-          createObjectProperty(modifier, trueExpression),
+        dir.modifiers.map((modifier) =>
+          createObjectProperty(modifier, trueExpression)
         ),
-        loc,
-      ),
-    )
-
+        loc
+      )
+    );
   }
 
-    console.log('dirArgs', dirArgs);
-  return createArrayExpression(dirArgs, dir.loc)
+  return createArrayExpression(dirArgs, dir.loc);
 }
 
 function stringifyDynamicPropNames(props: string[]): string {

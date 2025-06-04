@@ -1,6 +1,6 @@
 tsc -w 並開啟根目錄下的 index.html
 
-看到withDirectives
+處理 v-model雙向更新
 
 3.reactive
 
@@ -25,26 +25,10 @@ instanceof
 Symbol.for('v-ndc')
 Symbol.for("v-cmt")
 
-export interface CompoundExpressionNode extends Node {
-type: NodeTypes.COMPOUND_EXPRESSION;
-/\*\*
-
-- - `null` means the expression is a simple identifier that doesn't need
-- parsing
-- - `false` means there was a parsing error
-    \*/
-    ast?: BabelNode | null | false;
-    children: (
-    | SimpleExpressionNode
-    | CompoundExpressionNode
-    | InterpolationNode
-    | TextNode
-    | string
-    | symbol
-    )[];
-    }
-
-
+(運算元)
+if (cb.flags! & SchedulerJobFlags.ALLOW_RECURSE) {
+cb.flags! &= ~SchedulerJobFlags.QUEUED
+}
 
 https://juejin.cn/post/7153889335232692255
 

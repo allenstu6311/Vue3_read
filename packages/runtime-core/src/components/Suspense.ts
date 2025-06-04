@@ -1,3 +1,4 @@
+import { isArray } from "../../../shared/src/general.js";
 import { ComponentInternalInstance } from "../component.js";
 import {
   ElementNamespace,
@@ -6,6 +7,7 @@ import {
   RendererNode,
   SetupRenderEffectFn,
 } from "../renderer.js";
+import { queuePostFlushCb } from "../scheduler.js";
 import { VNode } from "../vnode.js";
 
 export interface SuspenseProps {
@@ -51,4 +53,19 @@ export interface SuspenseBoundary {
     optimized: boolean
   ): void;
   unmount(parentSuspense: SuspenseBoundary | null, doRemove?: boolean): void;
+}
+
+export function queueEffectWithSuspense(
+  fn: Function | Function[],
+  suspense: SuspenseBoundary | null
+): void {
+  if (suspense && suspense.pendingBranch) {
+    if (isArray(fn)) {
+      suspense.effects.push(...fn);
+    } else {
+      suspense.effects.push(fn);
+    }
+  } else {
+    queuePostFlushCb(fn);
+  }
 }

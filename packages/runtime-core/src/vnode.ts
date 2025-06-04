@@ -24,6 +24,7 @@ import { RawSlots } from "./componentSlots.js";
 import { PatchFlags } from "../../shared/src/patchFlags.js";
 import { ReactiveFlags } from "../../reactivity/src/constants.js";
 import { SuspenseBoundary } from "./components/Suspense.js";
+import { callWithAsyncErrorHandling, ErrorCodes } from "./errorHandling.js";
 
 export const Fragment = Symbol.for("v-fgt") as any as {
   __isFragment: true;
@@ -413,12 +414,14 @@ function _createVNode(
 
 export function normalizeVNode(child: VNodeChild): VNode {
   if (isArray(child)) {
+    return null as any;
   } else if (isVNode(child)) {
     // already vnode, this should be the most common since compiled templates
     // always produce all-vnode children arrays
     return cloneIfMounted(child);
+  } else {
+    return createVNode(Text, null, String(child));
   }
-  return null as any;
 }
 
 // optimized normalization for template-compiled render fns
@@ -487,4 +490,16 @@ export function cloneVNode<T, U>(
 
 export function isSameVNodeType(n1: VNode, n2: VNode): boolean {
   return n1.type === n2.type && n1.key === n2.key;
+}
+
+export function invokeVNodeHook(
+  hook: VNodeHook,
+  instance: ComponentInternalInstance | null,
+  vnode: VNode,
+  prevVNode: VNode | null = null
+): void {
+  callWithAsyncErrorHandling(hook, instance, ErrorCodes.VNODE_HOOK, [
+    vnode,
+    prevVNode,
+  ]);
 }

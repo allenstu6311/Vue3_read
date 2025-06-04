@@ -1,5 +1,6 @@
 import { ShapeFlags } from "../../shared/src/shapeFlags.js";
 import { ComponentInternalInstance } from "./component.js";
+import { setCurrentRenderingInstance } from "./componentRenderContext.js";
 import { normalizeVNode, VNode } from "./vnode.js";
 
 export function renderComponentRoot(
@@ -23,14 +24,14 @@ export function renderComponentRoot(
     inheritAttrs,
   } = instance;
 
+  const prev = setCurrentRenderingInstance(instance);
+
   let result;
   let fallthroughAttrs;
 
   if (vnode.shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
     const proxyToUse = withProxy || proxy;
     const thisProxy = proxyToUse;
-
-    // debugger;
 
     // 標準化vnode
     result = normalizeVNode(
@@ -45,10 +46,12 @@ export function renderComponentRoot(
         ctx
       )
     );
+
     fallthroughAttrs = attrs;
   }
   let root = result;
   result = root;
 
+  setCurrentRenderingInstance(prev);
   return result as any;
 }

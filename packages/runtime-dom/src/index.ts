@@ -8,6 +8,8 @@ import { extend, isFunction, isString } from "../../shared/src/general.js";
 import { nodeOps } from "./nodeOps.js";
 import { patchProp } from "./patchProp.js";
 
+export { vModelText } from "./../../runtime-core/src/directives/vModel.js";
+
 const rendererOptions = /*@__PURE__*/ extend({ patchProp }, nodeOps) as any;
 
 let renderer: Renderer<Element | ShadowRoot> | HydrationRenderer;

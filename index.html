@@ -8,7 +8,8 @@
   <body>
     <!-- <div class="item" v-for="item in data" :key="item">{{ item }}</div> -->
     <div id="app">
-      <input type="text" v-model="test">
+      <input type="text" v-model="test" />
+      <span>{{test}}</span>
     </div>
 
       <script
@@ -21,7 +22,7 @@
         // debugger;
         const app = createApp({
           setup() {
-            const test = ref(100);
+            const test = ref('100');
             const data = ref([1,2,3])
 
             function change(){    
